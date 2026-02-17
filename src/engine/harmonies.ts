@@ -97,10 +97,13 @@ function ensureAnchors(colors: chroma.Color[]): chroma.Color[] {
     result.push(chroma.lch(20, 5, dominantH));
   }
 
-  // Check for neutral light (L > 85, C < 12)
-  const hasNeutralLight = result.some((c) => c.lab()[0] > 85 && c.lch()[1] < 12);
-  if (!hasNeutralLight) {
+  // Need at least two light neutrals (for walls + doors/drapes)
+  const lightNeutrals = result.filter((c) => c.lab()[0] > 80 && c.lch()[1] < 12);
+  if (lightNeutrals.length < 1) {
     result.push(chroma.lch(92, 3, dominantH));
+  }
+  if (lightNeutrals.length < 2) {
+    result.push(chroma.lch(85, 2, dominantH));
   }
 
   return result;

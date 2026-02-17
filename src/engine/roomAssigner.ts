@@ -338,11 +338,18 @@ import { getCatalogRole } from "./itemCatalog";
 function zipByLightness(
   items: { idx: number; targetL: number }[],
   colors: chroma.Color[],
-  result: RoomItem[]
+  result: RoomItem[],
+  structural: boolean = false
 ) {
   if (items.length === 0 || colors.length === 0) return;
   items.sort((a, b) => a.targetL - b.targetL);
-  colors.sort((a, b) => a.lab()[0] - b.lab()[0]);
+  // Structural colors sort by L + C*0.5 so neutral darks rank lower
+  // than chromatic darks, keeping vivid colors off floors.
+  colors.sort((a, b) => {
+    const sa = a.lab()[0] + (structural ? a.lch()[1] * 0.5 : 0);
+    const sb = b.lab()[0] + (structural ? b.lch()[1] * 0.5 : 0);
+    return sa - sb;
+  });
   const n = items.length;
   const p = colors.length;
   for (let i = 0; i < n; i++) {
@@ -389,8 +396,8 @@ export function autoFillRoom(
   } else if (structuralColors.length === 0) {
     zipByLightness([...accentItems, ...structuralItems], [...byChroma], result);
   } else {
-    zipByLightness(accentItems, accentColors, result);
-    zipByLightness(structuralItems, structuralColors, result);
+    zipByLightness(accentItems, accentColors, result, false);
+    zipByLightness(structuralItems, structuralColors, result, true);
   }
 
   return result;
