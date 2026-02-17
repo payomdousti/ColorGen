@@ -347,6 +347,107 @@ function tendencyBonus(candidate: chroma.Color, tendency: Tendency): number {
 
 // ─── Auto-fill ────────────────────────────────────────────────────
 
+import { getCatalogLightnessRange, getCatalogRole } from "./itemCatalog";
+import type { ItemRole } from "./itemCatalog";
+
+/**
+ * Score how well a palette color fits a specific item based on:
+ * 1. Lightness fit: does the color's L fall in the item's expected range?
+ * 2. Role fit: accent items prefer saturated colors, background prefers desaturated
+ * 3. Diversity: unused palette colors get a strong bonus
+ * 4. Harmony: how does adding this color affect overall room cohesion?
+ */
+function itemFitScore(
+  candidate: chroma.Color,
+  itemName: string,
+  itemRole: ItemRole,
+  lightnessRange: [number, number],
+  roomColors: chroma.Color[],
+  roomWeights: number[],
+  itemWeight: number,
+  algorithm: FillAlgorithm,
+  palette: chroma.Color[],
+  usageCount: Map<string, number>,
+  totalUnassigned: number,
+  tendency: Tendency
+): number {
+  const [L] = candidate.lab();
+  const [, C] = candidate.lch();
+
+  // 1. Lightness fit (0-30 points)
+  // Strong reward for being in range, penalty for being outside
+  let lightnessFit = 0;
+  const [minL, maxL] = lightnessRange;
+  const midL = (minL + maxL) / 2;
+  if (L >= minL && L <= maxL) {
+    // In range: bonus proportional to how close to the center
+    const dist = Math.abs(L - midL);
+    const halfRange = (maxL - minL) / 2;
+    lightnessFit = 30 - (dist / halfRange) * 10;
+  } else {
+    // Out of range: penalty proportional to distance
+    const dist = L < minL ? minL - L : L - maxL;
+    lightnessFit = -dist * 0.8;
+  }
+
+  // 2. Role fit (0-15 points)
+  let roleFit = 0;
+  switch (itemRole) {
+    case "background":
+      // Background items prefer low saturation and high lightness
+      roleFit = (C < 10 ? 10 : C < 20 ? 5 : -5) + (L > 75 ? 5 : 0);
+      break;
+    case "ground":
+      // Ground items (floors) prefer medium-low lightness and moderate saturation
+      roleFit = (L < 65 ? 8 : -5) + (C > 5 && C < 35 ? 7 : 0);
+      break;
+    case "accent":
+      // Accent items prefer higher saturation — they're the statement
+      roleFit = C > 20 ? 12 : C > 10 ? 6 : 0;
+      break;
+    case "anchor":
+      // Anchor items (furniture) are flexible but prefer mid-range
+      roleFit = (L > 25 && L < 80 ? 5 : 0) + (C > 5 ? 3 : 0);
+      break;
+    case "neutral":
+      // Neutral items (doors, trim) should match walls or be unobtrusive
+      roleFit = C < 12 ? 10 : C < 20 ? 3 : -8;
+      break;
+  }
+
+  // 3. Diversity bonus (0-25 points)
+  // STRONG bonus for unused palette colors to ensure variety
+  const uses = usageCount.get(candidate.hex()) || 0;
+  const paletteSize = palette.length;
+  let diversityBonus = 0;
+  if (uses === 0) {
+    // Unused color: big bonus, especially if many items left to fill
+    diversityBonus = 25;
+  } else if (uses === 1) {
+    diversityBonus = 8;
+  } else {
+    // Penalize heavy reuse unless the palette is very small
+    diversityBonus = Math.max(-10, 5 - uses * 5);
+  }
+
+  // If palette is larger than unassigned items, push harder for diversity
+  if (paletteSize > totalUnassigned && uses > 0) {
+    diversityBonus -= 10;
+  }
+
+  // 4. Harmony (0-~100 points, but scaled down)
+  // Use harmony as a tiebreaker, not the primary driver
+  const testColors = [...roomColors, candidate];
+  const testWeights = [...roomWeights, itemWeight];
+  const harmony = computeHarmonyScore(testColors, algorithm, palette, testWeights);
+  const harmonyScore = harmony * 0.3; // scale to ~0-30
+
+  // 5. Tendency bonus (small tiebreaker)
+  const tiebreak = tendencyBonus(candidate, tendency);
+
+  return lightnessFit + roleFit + diversityBonus + harmonyScore + tiebreak;
+}
+
 export function autoFillRoom(
   items: RoomItem[],
   palette: chroma.Color[],
@@ -375,23 +476,40 @@ export function autoFillRoom(
     if (usageCount.has(hex)) usageCount.set(hex, (usageCount.get(hex) || 0) + 1);
   }
 
-  for (let i = 0; i < result.length; i++) {
-    if (result[i].color !== null) continue;
+  const unassignedCount = result.filter((i) => i.color === null).length;
 
-    const candidateWeight = result[i].weight;
+  // Sort unassigned items: assign high-weight items first (floors, walls before pillows)
+  // This ensures the foundation is set before filling details
+  const unassignedIndices = result
+    .map((item, idx) => ({ item, idx }))
+    .filter(({ item }) => item.color === null)
+    .sort((a, b) => b.item.weight - a.item.weight);
+
+  let remaining = unassignedCount;
+
+  for (const { idx } of unassignedIndices) {
+    const item = result[idx];
+    const lightnessRange = getCatalogLightnessRange(item.name);
+    const role = getCatalogRole(item.name);
+
     let bestColor: chroma.Color | null = null;
     let bestScore = -Infinity;
 
     for (const candidate of palette) {
-      const testColors = [...roomColors, candidate];
-      const testWeights = [...roomWeights, candidateWeight];
-      const cohesion = computeHarmonyScore(testColors, algorithm, palette, testWeights);
-      const tiebreak = tendencyBonus(candidate, result[i].tendency);
-
-      const uses = usageCount.get(candidate.hex()) || 0;
-      const diversityNudge = Math.max(0, 3 - uses * 1.5);
-
-      const score = cohesion + tiebreak + diversityNudge;
+      const score = itemFitScore(
+        candidate,
+        item.name,
+        role,
+        lightnessRange,
+        roomColors,
+        roomWeights,
+        item.weight,
+        algorithm,
+        palette,
+        usageCount,
+        remaining,
+        item.tendency
+      );
 
       if (score > bestScore) {
         bestScore = score;
@@ -401,11 +519,13 @@ export function autoFillRoom(
 
     if (bestColor) {
       roomColors.push(bestColor);
-      roomWeights.push(candidateWeight);
+      roomWeights.push(item.weight);
       const hex = bestColor.hex();
       usageCount.set(hex, (usageCount.get(hex) || 0) + 1);
-      result[i] = { ...result[i], color: bestColor };
+      result[idx] = { ...result[idx], color: bestColor };
     }
+
+    remaining--;
   }
 
   return result;
