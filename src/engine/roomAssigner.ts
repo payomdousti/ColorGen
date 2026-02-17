@@ -279,13 +279,26 @@ function tendencyBonus(candidate: chroma.Color, tendency: Tendency): number {
   const [L] = candidate.lab();
   const [, C, H] = candidate.lch();
 
+  // Tendencies should be meaningful enough to influence picks
+  // when cohesion scores are similar (within ~5 points).
   switch (tendency) {
-    case "lighter": return L * 0.03;
-    case "darker": return (100 - L) * 0.03;
-    case "warmer": return (H <= 90 || H >= 300) ? 2 : 0;
-    case "cooler": return (H >= 180 && H <= 270) ? 2 : 0;
-    case "neutral": return Math.max(0, (20 - C) * 0.1);
-    case "bold": return C * 0.03;
+    case "lighter": {
+      // Lighter = high lightness AND low-to-moderate chroma
+      // Strong enough to meaningfully shift wall/sheet picks toward lights
+      const lBonus = L > 80 ? 8 : L > 65 ? 3 : L > 50 ? 0 : -5;
+      const cPenalty = C > 35 ? -4 : C > 20 ? -1 : 0;
+      return lBonus + cPenalty;
+    }
+    case "darker": return L < 40 ? 4 : L < 55 ? 1 : -3;
+    case "warmer": return (H <= 90 || H >= 300) ? 4 : -1;
+    case "cooler": return (H >= 150 && H <= 270) ? 4 : -1;
+    case "neutral": {
+      // Neutral = low chroma AND moderate-to-high lightness
+      const cBonus = C < 8 ? 6 : C < 15 ? 3 : -3;
+      const lBonus2 = L > 50 ? 1 : -1;
+      return cBonus + lBonus2;
+    }
+    case "bold": return C > 30 ? 4 : C > 15 ? 1 : -2;
   }
 }
 
@@ -305,6 +318,15 @@ export function autoFillRoom(
 
   const roomColors = [...fixedColors];
 
+  // Track how many times each palette color has been used
+  // to nudge toward palette breadth
+  const usageCount = new Map<string, number>();
+  for (const c of palette) usageCount.set(c.hex(), 0);
+  for (const c of fixedColors) {
+    const hex = c.hex();
+    if (usageCount.has(hex)) usageCount.set(hex, (usageCount.get(hex) || 0) + 1);
+  }
+
   for (let i = 0; i < result.length; i++) {
     if (result[i].color !== null) continue;
 
@@ -315,7 +337,16 @@ export function autoFillRoom(
       const testColors = [...roomColors, candidate];
       const cohesion = computeHarmonyScore(testColors, algorithm, palette);
       const tiebreak = tendencyBonus(candidate, result[i].tendency);
-      const score = cohesion + tiebreak;
+
+      // Diversity nudge: mild preference for less-used palette colors.
+      // This encourages the algorithm to use the breadth of the palette
+      // rather than repeating the safest color. The nudge is small enough
+      // that cohesion still dominates -- it only matters when multiple
+      // colors score similarly.
+      const uses = usageCount.get(candidate.hex()) || 0;
+      const diversityNudge = Math.max(0, 3 - uses * 1.5);
+
+      const score = cohesion + tiebreak + diversityNudge;
 
       if (score > bestScore) {
         bestScore = score;
@@ -325,6 +356,8 @@ export function autoFillRoom(
 
     if (bestColor) {
       roomColors.push(bestColor);
+      const hex = bestColor.hex();
+      usageCount.set(hex, (usageCount.get(hex) || 0) + 1);
       result[i] = { ...result[i], color: bestColor };
     }
   }

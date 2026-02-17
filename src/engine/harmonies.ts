@@ -104,8 +104,8 @@ function varyLCH(
 ): chroma.Color {
   const [l, c, h] = color.lch();
   return chroma.lch(
-    Math.max(8, Math.min(97, l + dL)),
-    Math.max(0, Math.min(130, c + dC)),
+    Math.max(15, Math.min(97, l + dL)),
+    Math.max(0, Math.min(55, c + dC)),
     ((h || 0) + dH + 360) % 360
   );
 }
@@ -127,7 +127,7 @@ function genComplementary(
       varyLCH(
         base,
         (rng() - 0.5) * 60,  // wide lightness range
-        (rng() - 0.5) * 50,  // wide chroma range
+        (rng() - 0.7) * 40,  // chroma: biased toward reducing saturation
         (rng() - 0.5) * 30   // moderate hue jitter
       )
     );
@@ -148,7 +148,7 @@ function genAnalogous(
       varyLCH(
         base,
         (rng() - 0.5) * 60,  // wide lightness
-        (rng() - 0.5) * 50,  // wide chroma
+        (rng() - 0.7) * 40,  // chroma: biased toward reducing
         (rng() - 0.5) * 70   // +/-35deg hue spread
       )
     );
@@ -171,7 +171,7 @@ function genTriadic(
       varyLCH(
         rotateHue(base, offset),
         (rng() - 0.5) * 60,
-        (rng() - 0.5) * 50,
+        (rng() - 0.7) * 40,
         (rng() - 0.5) * 30  // jitter around the triadic points
       )
     );
@@ -194,7 +194,7 @@ function genSplitComplementary(
       varyLCH(
         rotateHue(base, offset),
         (rng() - 0.5) * 60,
-        (rng() - 0.5) * 50,
+        (rng() - 0.7) * 40,
         (rng() - 0.5) * 30
       )
     );
