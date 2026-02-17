@@ -321,21 +321,10 @@ export function itemScoreDelta(
 import { getCatalogLightnessRange } from "./itemCatalog";
 
 /**
- * Auto-fill assigns palette colors to room items using one principle:
- * each item expects a lightness level, and the palette provides a
- * lightness gradient. Match them.
- *
- * The algorithm:
- * 1. Sort palette colors by lightness.
- * 2. For each unassigned item, compute where it falls in the
- *    lightness gradient (0 = darkest item in room, 1 = lightest).
- * 3. Pick the palette color at the matching position in the gradient.
- * 4. Already-used colors get a small penalty to encourage diversity.
- *
- * That's it. No role heuristics, no multi-term scoring function,
- * no magic numbers. The catalog's lightness ranges encode all the
- * design knowledge — floors are dark, walls are light, furniture
- * is in between — and the sort-and-match does the rest.
+ * Auto-fill assigns palette colors to room items by matching
+ * lightness: each item expects a lightness level (from the catalog),
+ * and the palette provides colors at various lightnesses. Match them,
+ * and penalize visual similarity to colors already in the room.
  */
 export function autoFillRoom(
   items: RoomItem[],
@@ -344,61 +333,61 @@ export function autoFillRoom(
 ): RoomItem[] {
   if (palette.length === 0) return items;
 
-  // Sort palette by lightness (dark → light)
   const sortedPalette = [...palette].sort(
     (a, b) => a.lab()[0] - b.lab()[0]
   );
 
-  // For each unassigned item, compute its "target lightness" —
-  // the midpoint of its expected range from the catalog.
   const result = [...items];
+
+  // Items sorted by weight (most important first — walls/floors before pillows).
+  // This ensures the foundation is set before details, so high-weight
+  // items get first pick of the palette and aren't penalized by
+  // similarity to minor items assigned earlier.
   const unassigned = result
     .map((item, idx) => {
       if (item.color !== null) return null;
       const [minL, maxL] = getCatalogLightnessRange(item.name);
       return { idx, targetL: (minL + maxL) / 2, weight: item.weight };
     })
-    .filter((x): x is NonNullable<typeof x> => x !== null);
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .sort((a, b) => b.weight - a.weight);
 
-  // Sort items by target lightness (dark items first)
-  unassigned.sort((a, b) => a.targetL - b.targetL);
+  // Colors already in the room (from manually assigned items)
+  const assigned: chroma.Color[] = result
+    .filter((item) => item.color !== null)
+    .map((item) => item.color!);
 
-  // Track usage to nudge diversity
-  const usageCount = new Map<string, number>();
-  for (const c of sortedPalette) usageCount.set(c.hex(), 0);
-  for (const item of result) {
-    if (item.color) {
-      const hex = item.color.hex();
-      if (usageCount.has(hex)) usageCount.set(hex, (usageCount.get(hex) || 0) + 1);
-    }
-  }
-
-  // Match: map each item's position in the lightness-sorted list
-  // to the corresponding position in the sorted palette.
-  for (let i = 0; i < unassigned.length; i++) {
-    const { idx, targetL } = unassigned[i];
-
-    // Find the palette color closest to this item's target lightness,
-    // with a small penalty for reuse.
+  for (const { idx, targetL } of unassigned) {
     let bestColor = sortedPalette[0];
-    let bestDist = Infinity;
+    let bestCost = Infinity;
 
     for (const candidate of sortedPalette) {
-      const L = candidate.lab()[0];
-      const dist = Math.abs(L - targetL);
-      const uses = usageCount.get(candidate.hex()) || 0;
-      const reusePenalty = uses * 12;
-      const effective = dist + reusePenalty;
+      // How far is this color from the item's target lightness?
+      const lightnessCost = Math.abs(candidate.lab()[0] - targetL);
 
-      if (effective < bestDist) {
-        bestDist = effective;
+      // How similar is this color to what's already in the room?
+      // Strong penalty for visual similarity. This prevents both
+      // exact reuse AND "five shades of gray" where technically
+      // different hex values look identical.
+      let similarityPenalty = 0;
+      for (const existing of assigned) {
+        const de = chroma.deltaE(candidate, existing);
+        if (de < 25) {
+          // Quadratic penalty: near-identical colors (de<5) get
+          // a huge penalty, moderately similar ones get less.
+          similarityPenalty += ((25 - de) / 25) * 30;
+        }
+      }
+
+      const cost = lightnessCost + similarityPenalty;
+      if (cost < bestCost) {
+        bestCost = cost;
         bestColor = candidate;
       }
     }
 
     result[idx] = { ...result[idx], color: bestColor };
-    const hex = bestColor.hex();
-    usageCount.set(hex, (usageCount.get(hex) || 0) + 1);
+    assigned.push(bestColor);
   }
 
   return result;
