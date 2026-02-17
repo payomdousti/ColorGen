@@ -142,16 +142,32 @@ function genAnalogous(
 ): chroma.Color[] {
   const results: chroma.Color[] = [];
 
+  // Ensure a spread of lightness/chroma levels:
+  // First ~40% are desaturated/lighter variations (for walls, sheets, etc.)
+  // Middle ~30% are mid-range
+  // Last ~30% are darker/richer variations
   for (let i = 0; i < count; i++) {
     const base = bases[i % bases.length];
-    results.push(
-      varyLCH(
-        base,
-        (rng() - 0.5) * 60,  // wide lightness
-        (rng() - 0.7) * 40,  // chroma: biased toward reducing
-        (rng() - 0.5) * 70   // +/-35deg hue spread
-      )
-    );
+    const position = i / Math.max(1, count - 1); // 0 to 1
+
+    let dL: number, dC: number;
+    if (position < 0.4) {
+      // Light, desaturated zone
+      dL = 20 + rng() * 30;        // push significantly lighter
+      dC = -(15 + rng() * 30);     // push significantly less saturated
+    } else if (position < 0.7) {
+      // Mid zone
+      dL = (rng() - 0.5) * 30;
+      dC = (rng() - 0.6) * 30;
+    } else {
+      // Darker, richer zone
+      dL = -(10 + rng() * 25);
+      dC = (rng() - 0.5) * 25;
+    }
+
+    const dH = (rng() - 0.5) * 60;
+
+    results.push(varyLCH(base, dL, dC, dH));
   }
   return results;
 }
