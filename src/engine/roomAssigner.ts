@@ -323,46 +323,81 @@ import { getCatalogLightnessRange } from "./itemCatalog";
 import { getCatalogRole } from "./itemCatalog";
 
 /**
- * Auto-fill in two passes:
+ * Auto-fill in two lanes:
  *
- * 1. Accent items get first pick of the most chromatic palette colors.
- * 2. Structural items get the remaining (most neutral) colors.
+ * 1. Accent lane: chromatic palette colors, each item picks the closest
+ *    lightness match (depleting to ensure diversity).
+ * 2. Structural lane: neutral palette colors, each item picks the closest
+ *    lightness match (non-depleting so walls+doors can share).
  *
- * Within each pass: sort by lightness, zip proportionally.
- *
- * This ensures chromatic colors land on accent walls, couches, and rugs
- * while floors, walls, and doors stay neutral — regardless of the
- * palette's composition.
+ * Structural colors are passed through neutralizeForStructure() to
+ * guarantee low chroma on backgrounds/floors/doors.
  */
 
+
+/**
+ * Proportional lightness spread for accent items. Sorts items and colors
+ * by lightness, then maps items to evenly-spaced color positions. This
+ * distributes available lightness across all items — better than greedy
+ * matching when the palette skews dark (most chromatic colors at L<30).
+ */
 function zipByLightness(
   items: { idx: number; targetL: number }[],
   colors: chroma.Color[],
-  result: RoomItem[],
-  structural: boolean = false
+  result: RoomItem[]
 ) {
   if (items.length === 0 || colors.length === 0) return;
   items.sort((a, b) => a.targetL - b.targetL);
-  // Structural lane: sort by lightness but push chromatic colors toward
-  // the middle, away from the floor slot (darkest) and wall slot (lightest).
-  // This keeps vivid leftovers off floors and walls.
-  if (structural) {
-    colors.sort((a, b) => {
-      const La = a.lab()[0], Ca = a.lch()[1];
-      const Lb = b.lab()[0], Cb = b.lch()[1];
-      const sa = La + Ca * 0.5;
-      const sb = Lb + Cb * 0.5;
-      return sa - sb;
-    });
-  } else {
-    colors.sort((a, b) => a.lab()[0] - b.lab()[0]);
-  }
+  colors.sort((a, b) => a.lab()[0] - b.lab()[0]);
   const n = items.length;
   const p = colors.length;
   for (let i = 0; i < n; i++) {
     const pos = n > 1 ? (i / (n - 1)) * (p - 1) : (p - 1) / 2;
     const ci = Math.min(Math.round(pos), p - 1);
     result[items[i].idx] = { ...result[items[i].idx], color: colors[ci] };
+  }
+}
+
+/**
+ * Structural surfaces should stay near-neutral.
+ * Threshold matches the chromatic/neutral split (C > 12) so that any
+ * color considered "chromatic" by the palette splitter is desaturated
+ * before landing on a structural surface.
+ */
+function neutralizeForStructure(color: chroma.Color): chroma.Color {
+  const [L] = color.lab();
+  const [, C, H] = color.lch();
+  if (C <= 12) return color;
+  try {
+    return chroma.lch(L, 5, H || 0);
+  } catch {
+    return color;
+  }
+}
+
+/**
+ * Nearest-target assignment for structural items. Each item picks the
+ * color whose lightness is closest to its targetL. Non-depleting: items
+ * pick independently so walls and doors can share the same off-white.
+ */
+function matchByTargetL(
+  items: { idx: number; targetL: number }[],
+  colors: chroma.Color[],
+  result: RoomItem[]
+) {
+  if (items.length === 0 || colors.length === 0) return;
+  const pool = colors.map((c) => ({ color: c, L: c.lab()[0] }));
+  for (const item of items) {
+    let bestIdx = 0;
+    let bestDist = Infinity;
+    for (let j = 0; j < pool.length; j++) {
+      const dist = Math.abs(pool[j].L - item.targetL);
+      if (dist < bestDist) {
+        bestDist = dist;
+        bestIdx = j;
+      }
+    }
+    result[item.idx] = { ...result[item.idx], color: pool[bestIdx].color };
   }
 }
 
@@ -430,14 +465,31 @@ export function autoFillRoom(
     .slice(0, needed);
   const structuralColors = [...neutral, ...extras];
 
-  // If one group has no colors, give everything to the other
+  // Accent lane: proportional spread distributes available lightness
+  // evenly across items (handles dark-skewed palettes gracefully).
+  // Structural lane: nearest-target matching so each item gets the
+  // color closest to its expected lightness (non-depleting: walls
+  // and doors can share the same off-white).
   if (accentColors.length === 0) {
-    zipByLightness([...accentItems, ...structuralItems], [...palette], result);
+    matchByTargetL(
+      [...accentItems, ...structuralItems],
+      palette.map(neutralizeForStructure),
+      result
+    );
   } else if (structuralColors.length === 0) {
-    zipByLightness([...accentItems, ...structuralItems], [...palette], result);
+    zipByLightness(accentItems, [...palette], result);
+    matchByTargetL(
+      structuralItems,
+      palette.map(neutralizeForStructure),
+      result
+    );
   } else {
-    zipByLightness(accentItems, accentColors, result, false);
-    zipByLightness(structuralItems, structuralColors, result, true);
+    zipByLightness(accentItems, accentColors, result);
+    matchByTargetL(
+      structuralItems,
+      structuralColors.map(neutralizeForStructure),
+      result
+    );
   }
 
   return result;
