@@ -1,12 +1,5 @@
 import type chroma from "chroma-js";
-
-export type ItemWeight = "large" | "medium" | "small";
-
-export const WEIGHT_LABELS: Record<ItemWeight, string> = {
-  large: "L",
-  medium: "M",
-  small: "S",
-};
+import { getCatalogWeight } from "./itemCatalog";
 
 export type Tendency =
   | "any"
@@ -31,7 +24,7 @@ export interface RoomItem {
   id: number;
   name: string;
   color: chroma.Color | null;
-  weight: ItemWeight;
+  weight: number;
   tendency: Tendency;
 }
 
@@ -40,34 +33,46 @@ export interface RoomTemplate {
   items: Omit<RoomItem, "id">[];
 }
 
+function templateItem(
+  name: string,
+  tendency: Tendency = "any"
+): Omit<RoomItem, "id"> {
+  return {
+    name,
+    color: null,
+    weight: getCatalogWeight(name),
+    tendency,
+  };
+}
+
 export const ROOM_TEMPLATES: RoomTemplate[] = [
   {
     name: "Living Room",
     items: [
-      { name: "Floors", color: null, weight: "large", tendency: "any" },
-      { name: "Main Wall", color: null, weight: "large", tendency: "lighter" },
-      { name: "Accent Wall", color: null, weight: "medium", tendency: "any" },
-      { name: "Built-in Bookshelf", color: null, weight: "medium", tendency: "any" },
-      { name: "Doors", color: null, weight: "medium", tendency: "neutral" },
-      { name: "Drapes", color: null, weight: "medium", tendency: "any" },
-      { name: "Couch", color: null, weight: "medium", tendency: "any" },
-      { name: "Rug", color: null, weight: "medium", tendency: "any" },
+      templateItem("Floors"),
+      templateItem("Main Wall", "lighter"),
+      templateItem("Accent Wall"),
+      templateItem("Built-in Bookshelf"),
+      templateItem("Doors", "neutral"),
+      templateItem("Drapes"),
+      templateItem("Couch"),
+      templateItem("Rug"),
     ],
   },
   {
     name: "Bedroom",
     items: [
-      { name: "Floors", color: null, weight: "large", tendency: "any" },
-      { name: "Main Wall", color: null, weight: "large", tendency: "lighter" },
-      { name: "Accent Wall", color: null, weight: "medium", tendency: "any" },
-      { name: "Doors", color: null, weight: "medium", tendency: "neutral" },
-      { name: "Built-in Bookcase", color: null, weight: "medium", tendency: "any" },
-      { name: "Duvet Cover", color: null, weight: "large", tendency: "any" },
-      { name: "Sheets", color: null, weight: "large", tendency: "lighter" },
-      { name: "Fitted Sheet", color: null, weight: "large", tendency: "lighter" },
-      { name: "Pillowcases", color: null, weight: "small", tendency: "any" },
-      { name: "Reading Nook Upholstery", color: null, weight: "small", tendency: "any" },
-      { name: "Rug", color: null, weight: "medium", tendency: "any" },
+      templateItem("Floors"),
+      templateItem("Main Wall", "lighter"),
+      templateItem("Accent Wall"),
+      templateItem("Doors", "neutral"),
+      templateItem("Built-in Bookshelf"),
+      templateItem("Duvet Cover"),
+      templateItem("Sheets", "lighter"),
+      templateItem("Fitted Sheet", "lighter"),
+      templateItem("Pillowcases"),
+      templateItem("Upholstery"),
+      templateItem("Rug"),
     ],
   },
 ];

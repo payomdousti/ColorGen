@@ -1,5 +1,6 @@
 import chroma from "chroma-js";
-import type { RoomItem, ItemWeight, Tendency } from "./roomTemplates";
+import type { RoomItem, Tendency } from "./roomTemplates";
+import { getCatalogWeight } from "./itemCatalog";
 
 const STORAGE_KEY = "colorgen_state";
 
@@ -20,7 +21,7 @@ interface SerializedRoomItem {
   id: number;
   name: string;
   hex: string | null;
-  weight: ItemWeight;
+  weight: number;
   tendency: Tendency;
 }
 
@@ -118,7 +119,9 @@ export function deserializeRoomItems(items: SerializedRoomItem[]): RoomItem[] {
     id: item.id,
     name: item.name,
     color: item.hex ? chroma(item.hex) : null,
-    weight: item.weight,
+    weight: typeof item.weight === "number"
+      ? item.weight
+      : getCatalogWeight(item.name),
     tendency: item.tendency,
   }));
 }

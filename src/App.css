@@ -1077,6 +1077,65 @@ body {
   color: var(--text);
 }
 
+/* ---- Item Catalog Picker ---- */
+
+.item-catalog {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.item-catalog-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.item-catalog-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+}
+
+.item-catalog-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.item-catalog-btn {
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 0.72rem;
+  font-family: var(--font);
+  cursor: pointer;
+  transition: all 0.12s;
+}
+
+.item-catalog-btn:hover {
+  border-color: var(--accent);
+  background: var(--surface);
+}
+
+.item-catalog-custom {
+  border-style: dashed;
+  color: var(--text-secondary);
+}
+
+.item-catalog-custom:hover {
+  color: var(--text);
+}
+
 /* ---- Swatch Picker Overlay ---- */
 
 .swatch-picker-overlay {

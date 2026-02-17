@@ -2,11 +2,12 @@ import { useState, useCallback, useMemo, useEffect, useImperativeHandle, forward
 import chroma from "chroma-js";
 import { ROOM_TEMPLATES } from "../engine/roomTemplates";
 import type { RoomItem } from "../engine/roomTemplates";
+import { getCatalogByCategory, CATEGORY_LABELS } from "../engine/itemCatalog";
+import type { ItemCategory } from "../engine/itemCatalog";
 import {
   autoFillRoom,
   computeHarmonyScore,
   itemScoreDelta,
-  itemWeightToNumber,
   FILL_LABELS,
   FILL_DESCRIPTIONS,
 } from "../engine/roomAssigner";
@@ -103,11 +104,18 @@ export const RoomTab = forwardRef<RoomTabHandle, RoomTabProps>(function RoomTab(
     }
   };
 
-  const handleAddItem = () => {
+  const [showCatalog, setShowCatalog] = useState(false);
+
+  const handleAddItem = (name: string, weight: number) => {
     setRoomItems((prev) => [
       ...prev,
-      { id: nextItemId++, name: "New Item", color: null, weight: "medium", tendency: "any" as const },
+      { id: nextItemId++, name, color: null, weight, tendency: "any" as const },
     ]);
+    setShowCatalog(false);
+  };
+
+  const handleAddCustomItem = () => {
+    handleAddItem("New Item", 3);
   };
 
   const handleUpdateItem = useCallback((updated: RoomItem) => {
@@ -167,7 +175,7 @@ export const RoomTab = forwardRef<RoomTabHandle, RoomTabProps>(function RoomTab(
   );
 
   const assignedWeights = useMemo(
-    () => assignedItems.map((item) => itemWeightToNumber(item.weight)),
+    () => assignedItems.map((item) => item.weight),
     [assignedItems]
   );
 
@@ -191,7 +199,7 @@ export const RoomTab = forwardRef<RoomTabHandle, RoomTabProps>(function RoomTab(
             fillAlgorithm,
             activePalette,
             assignedWeights,
-            itemWeightToNumber(item.weight)
+            item.weight
           )
         );
       }
@@ -311,11 +319,49 @@ export const RoomTab = forwardRef<RoomTabHandle, RoomTabProps>(function RoomTab(
                   Clear Colors
                 </button>
               )}
-              <button className="btn-add" onClick={handleAddItem}>
+              <button className="btn-add" onClick={() => setShowCatalog(!showCatalog)}>
                 + Add Item
               </button>
             </div>
           </div>
+
+          {showCatalog && (
+            <div className="item-catalog">
+              {(Object.keys(CATEGORY_LABELS) as ItemCategory[]).map((cat) => {
+                const items = getCatalogByCategory()[cat];
+                const existing = new Set(roomItems.map((i) => i.name.toLowerCase()));
+                const available = items.filter(
+                  (i) => !existing.has(i.name.toLowerCase())
+                );
+                if (available.length === 0) return null;
+                return (
+                  <div key={cat} className="item-catalog-group">
+                    <span className="item-catalog-label">{CATEGORY_LABELS[cat]}</span>
+                    <div className="item-catalog-items">
+                      {available.map((ci) => (
+                        <button
+                          key={ci.name}
+                          className="item-catalog-btn"
+                          onClick={() => handleAddItem(ci.name, ci.weight)}
+                          title={`Visual weight: ${ci.weight}/10`}
+                        >
+                          {ci.name}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+              <div className="item-catalog-group">
+                <button
+                  className="item-catalog-btn item-catalog-custom"
+                  onClick={handleAddCustomItem}
+                >
+                  + Custom item…
+                </button>
+              </div>
+            </div>
+          )}
 
           <div className="room-items-list">
             {roomItems.map((item) => {
@@ -324,7 +370,7 @@ export const RoomTab = forwardRef<RoomTabHandle, RoomTabProps>(function RoomTab(
                 (ai) => ai.id !== item.id
               );
               const otherColors = otherItems.map((ai) => ai.color!);
-              const otherWeights = otherItems.map((ai) => itemWeightToNumber(ai.weight));
+              const otherWeights = otherItems.map((ai) => ai.weight);
               return (
                 <RoomItemRow
                   key={item.id}

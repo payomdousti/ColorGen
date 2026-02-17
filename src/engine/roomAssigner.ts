@@ -1,20 +1,11 @@
 import chroma from "chroma-js";
-import type { ItemWeight, RoomItem, Tendency } from "./roomTemplates";
+import type { RoomItem, Tendency } from "./roomTemplates";
 
 // ─── Weight helpers ───────────────────────────────────────────────
 
-const WEIGHT_MULTIPLIER: Record<ItemWeight, number> = {
-  large: 3,
-  medium: 2,
-  small: 1,
-};
-
-export function itemWeightToNumber(w: ItemWeight): number {
-  return WEIGHT_MULTIPLIER[w];
-}
-
 /**
  * Expand a color array by repeating each color according to its weight.
+ * Weight is a continuous 1-10 scale from the item catalog.
  * This makes prominent items contribute more to statistical measures.
  */
 function expandByWeights(
@@ -370,7 +361,7 @@ export function autoFillRoom(
   for (const item of result) {
     if (item.color !== null) {
       fixedColors.push(item.color);
-      fixedWeights.push(itemWeightToNumber(item.weight));
+      fixedWeights.push(item.weight);
     }
   }
 
@@ -387,7 +378,7 @@ export function autoFillRoom(
   for (let i = 0; i < result.length; i++) {
     if (result[i].color !== null) continue;
 
-    const candidateWeight = itemWeightToNumber(result[i].weight);
+    const candidateWeight = result[i].weight;
     let bestColor: chroma.Color | null = null;
     let bestScore = -Infinity;
 

@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import chroma from "chroma-js";
 import type { RoomItem } from "../engine/roomTemplates";
 import { toHex } from "../engine/parser";
-import { scoreCandidates, itemWeightToNumber } from "../engine/roomAssigner";
+import { scoreCandidates } from "../engine/roomAssigner";
 import type { FillAlgorithm } from "../engine/roomAssigner";
 import { SwatchPicker } from "./SwatchPicker";
 
@@ -49,7 +49,7 @@ export function RoomItemRow({
   const isHurting = scoreDelta !== null && scoreDelta < avgDelta - 3;
   const isHelping = scoreDelta !== null && scoreDelta > avgDelta + 1;
 
-  const myWeight = itemWeightToNumber(item.weight);
+  const myWeight = item.weight;
 
   const candidates = useMemo(
     () => scoreCandidates(palette, otherRoomColors, algorithm, otherRoomWeights, myWeight),
