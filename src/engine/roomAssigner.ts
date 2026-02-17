@@ -321,10 +321,13 @@ export function itemScoreDelta(
 import { getCatalogLightnessRange } from "./itemCatalog";
 
 /**
- * Auto-fill assigns palette colors to room items by matching
- * lightness: each item expects a lightness level (from the catalog),
- * and the palette provides colors at various lightnesses. Match them,
- * and penalize visual similarity to colors already in the room.
+ * Auto-fill: sort items by target lightness, sort palette by lightness,
+ * map positions proportionally. Item 0 gets the darkest palette color,
+ * item N gets the lightest, everything in between is interpolated.
+ *
+ * No searching, no penalty tuning, no parameters. Each item gets a
+ * unique position in the palette gradient, so no two items share a
+ * color unless the palette has fewer colors than items.
  */
 export function autoFillRoom(
   items: RoomItem[],
@@ -333,61 +336,35 @@ export function autoFillRoom(
 ): RoomItem[] {
   if (palette.length === 0) return items;
 
-  const sortedPalette = [...palette].sort(
-    (a, b) => a.lab()[0] - b.lab()[0]
-  );
+  // Palette sorted dark → light
+  const sorted = [...palette].sort((a, b) => a.lab()[0] - b.lab()[0]);
 
   const result = [...items];
 
-  // Items sorted by weight (most important first — walls/floors before pillows).
-  // This ensures the foundation is set before details, so high-weight
-  // items get first pick of the palette and aren't penalized by
-  // similarity to minor items assigned earlier.
+  // Unassigned items with their target lightness from the catalog
   const unassigned = result
     .map((item, idx) => {
       if (item.color !== null) return null;
       const [minL, maxL] = getCatalogLightnessRange(item.name);
-      return { idx, targetL: (minL + maxL) / 2, weight: item.weight };
+      return { idx, targetL: (minL + maxL) / 2 };
     })
-    .filter((x): x is NonNullable<typeof x> => x !== null)
-    .sort((a, b) => b.weight - a.weight);
+    .filter((x): x is NonNullable<typeof x> => x !== null);
 
-  // Colors already in the room (from manually assigned items)
-  const assigned: chroma.Color[] = result
-    .filter((item) => item.color !== null)
-    .map((item) => item.color!);
+  // Sort items by target lightness (dark → light)
+  unassigned.sort((a, b) => a.targetL - b.targetL);
 
-  for (const { idx, targetL } of unassigned) {
-    let bestColor = sortedPalette[0];
-    let bestCost = Infinity;
+  // Map each item's position to a palette position proportionally
+  const n = unassigned.length;
+  const p = sorted.length;
 
-    for (const candidate of sortedPalette) {
-      // How far is this color from the item's target lightness?
-      const lightnessCost = Math.abs(candidate.lab()[0] - targetL);
-
-      // How similar is this color to what's already in the room?
-      // Strong penalty for visual similarity. This prevents both
-      // exact reuse AND "five shades of gray" where technically
-      // different hex values look identical.
-      let similarityPenalty = 0;
-      for (const existing of assigned) {
-        const de = chroma.deltaE(candidate, existing);
-        if (de < 25) {
-          // Quadratic penalty: near-identical colors (de<5) get
-          // a huge penalty, moderately similar ones get less.
-          similarityPenalty += ((25 - de) / 25) * 30;
-        }
-      }
-
-      const cost = lightnessCost + similarityPenalty;
-      if (cost < bestCost) {
-        bestCost = cost;
-        bestColor = candidate;
-      }
-    }
-
-    result[idx] = { ...result[idx], color: bestColor };
-    assigned.push(bestColor);
+  for (let i = 0; i < n; i++) {
+    // Item i out of n maps to palette position (i / (n-1)) * (p-1)
+    const palettePos = n > 1 ? (i / (n - 1)) * (p - 1) : (p - 1) / 2;
+    const paletteIdx = Math.round(palettePos);
+    result[unassigned[i].idx] = {
+      ...result[unassigned[i].idx],
+      color: sorted[Math.min(paletteIdx, p - 1)],
+    };
   }
 
   return result;
