@@ -1,7 +1,5 @@
 /**
- * Outfit templates — each represents a single outfit you'd wear.
- * Designed around: Le Laboureur / Maison Margiela / Issey Miyake /
- * The Row / Rick Owens / John Elliott / Norse Projects / Bode.
+ * Outfit templates — generic outfit types, not brand-specific.
  */
 
 export interface OutfitTemplate {
@@ -12,99 +10,99 @@ export interface OutfitTemplate {
 
 export const OUTFIT_TEMPLATES: OutfitTemplate[] = [
   {
-    name: "French Workwear",
-    description: "Le Laboureur chore coat, Margiela tee, dark denim",
-    items: ["Chore Coat", "T-Shirt", "Jeans", "Boots", "Belt"],
+    name: "Casual",
+    description: "Everyday basics",
+    items: ["T-Shirt", "Jeans", "Sneakers", "Belt", "Watch"],
   },
   {
-    name: "The Row Lunch",
-    description: "Clean knit, tailored wide trousers, slip-ons",
-    items: ["Knit Top", "Wide Trousers", "Slip-Ons", "Tote Bag"],
+    name: "Smart Casual",
+    description: "Polished but relaxed",
+    items: ["Button-Down Shirt", "Chinos", "Loafers", "Belt", "Watch"],
   },
   {
-    name: "Rick Layered",
-    description: "Dark draped layers",
-    items: ["Tank Top", "Hoodie", "Drawstring Pants", "High-Tops"],
+    name: "Formal",
+    description: "Suit and tie",
+    items: ["Button-Down Shirt", "Trousers", "Blazer", "Dress Shoes", "Belt", "Tie"],
   },
   {
-    name: "Norse Minimal",
-    description: "Scandinavian clean lines",
-    items: ["Sweater", "Chinos", "Sneakers", "Watch"],
-  },
-  {
-    name: "Gallery Opening",
-    description: "Oversized Margiela with wide pants",
-    items: ["Oversized Tee", "Wide Trousers", "Loafers", "Bracelet"],
-  },
-  {
-    name: "Issey Evening",
-    description: "Architectural layers for going out",
+    name: "Evening Out",
+    description: "Going out for dinner or drinks",
     items: ["Turtleneck", "Trousers", "Blazer", "Chelsea Boots"],
   },
   {
-    name: "John Elliott Basics",
-    description: "Elevated essential menswear",
-    items: ["T-Shirt", "Joggers", "Sneakers", "Cap"],
-  },
-  {
-    name: "Workwear Layers",
-    description: "French jacket over henley and denim",
-    items: ["Workwear Jacket", "Henley", "Jeans", "Boots", "Watch"],
-  },
-  {
-    name: "All Black",
-    description: "Head-to-toe dark — Rick meets Margiela",
-    items: ["Turtleneck", "Wide Trousers", "Chelsea Boots", "Crossbody Bag"],
-  },
-  {
-    name: "Weekend Venice",
-    description: "LA easy — shirt jacket and drawstring",
-    items: ["Shirt Jacket", "T-Shirt", "Drawstring Pants", "Sandals", "Sunglasses"],
-  },
-  {
-    name: "Smart Overcoat",
-    description: "Overcoat over knit, tailored bottoms",
-    items: ["Overcoat", "Knit Top", "Trousers", "Dress Shoes", "Scarf"],
-  },
-  {
-    name: "Margiela Decon",
-    description: "Oversized proportions, minimal accessories",
-    items: ["Oversized Tee", "Jeans", "Boots", "Ring"],
-  },
-  {
-    name: "Summer Minimal",
-    description: "Warm weather, pared back",
-    items: ["Band Collar Shirt", "Shorts", "Sandals", "Sunglasses"],
-  },
-  {
-    name: "Norse Layered",
-    description: "Cardigan over tee, clean bottoms",
-    items: ["Cardigan", "T-Shirt", "Chinos", "Loafers"],
-  },
-  {
-    name: "Dark Tailored",
-    description: "Blazer with turtleneck, evening-ready",
-    items: ["Blazer", "Turtleneck", "Trousers", "Dress Shoes", "Watch"],
-  },
-  {
-    name: "Studio Day",
-    description: "Comfortable creative work outfit",
+    name: "Relaxed",
+    description: "Comfortable and easy",
     items: ["Sweater", "Drawstring Pants", "Slip-Ons", "Beanie"],
   },
   {
-    name: "Bomber Clean",
-    description: "Bomber over minimal base",
+    name: "Workwear",
+    description: "Chore coat and denim",
+    items: ["Chore Coat", "T-Shirt", "Jeans", "Boots", "Belt"],
+  },
+  {
+    name: "Layered",
+    description: "Cardigan or jacket over a tee",
+    items: ["Cardigan", "T-Shirt", "Chinos", "Loafers"],
+  },
+  {
+    name: "Minimal",
+    description: "Clean knit and wide trousers",
+    items: ["Knit Top", "Wide Trousers", "Slip-Ons", "Tote Bag"],
+  },
+  {
+    name: "Dark",
+    description: "Head-to-toe dark tones",
+    items: ["Turtleneck", "Wide Trousers", "Chelsea Boots", "Crossbody Bag"],
+  },
+  {
+    name: "Summer",
+    description: "Warm weather essentials",
+    items: ["Band Collar Shirt", "Shorts", "Sandals", "Sunglasses"],
+  },
+  {
+    name: "Winter",
+    description: "Cold weather layers",
+    items: ["Parka", "Turtleneck", "Jeans", "Boots", "Beanie"],
+  },
+  {
+    name: "Overcoat",
+    description: "Coat over a knit, tailored bottoms",
+    items: ["Overcoat", "Knit Top", "Trousers", "Dress Shoes", "Scarf"],
+  },
+  {
+    name: "Bomber",
+    description: "Bomber jacket over a simple base",
     items: ["Bomber Jacket", "T-Shirt", "Trousers", "Sneakers"],
   },
   {
-    name: "Denim on Denim",
-    description: "Tonal denim with contrast",
+    name: "Shirt Jacket",
+    description: "Light outer layer for mild weather",
+    items: ["Shirt Jacket", "T-Shirt", "Drawstring Pants", "Sandals", "Sunglasses"],
+  },
+  {
+    name: "Denim",
+    description: "Denim jacket and jeans",
     items: ["Denim Jacket", "T-Shirt", "Jeans", "Chelsea Boots", "Belt"],
   },
   {
-    name: "Parka Weather",
-    description: "Cold weather, bundled up",
-    items: ["Parka", "Turtleneck", "Jeans", "Boots", "Beanie"],
+    name: "Athleisure",
+    description: "Sporty and comfortable",
+    items: ["Hoodie", "Joggers", "Sneakers", "Cap"],
+  },
+  {
+    name: "Oversized",
+    description: "Relaxed proportions, wide fit",
+    items: ["Oversized Tee", "Wide Trousers", "Loafers", "Bracelet"],
+  },
+  {
+    name: "Tailored Dark",
+    description: "Dark blazer with a knit underneath",
+    items: ["Blazer", "Turtleneck", "Trousers", "Dress Shoes", "Watch"],
+  },
+  {
+    name: "Henley Layer",
+    description: "Jacket over henley and denim",
+    items: ["Workwear Jacket", "Henley", "Jeans", "Boots", "Watch"],
   },
   {
     name: "Effortless",
