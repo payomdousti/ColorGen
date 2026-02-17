@@ -48,10 +48,7 @@ export function PaletteTab({
   onSuggestionsChange,
   onBaseColorsChange,
 }: PaletteTabProps) {
-  const [entries, setEntries] = useState<PaletteEntry[]>(() => [
-    createEntry("#8B7355"),
-    createEntry("#E8E0D4"),
-  ]);
+  const [entries, setEntries] = useState<PaletteEntry[]>([]);
   const [harmonyMode, setHarmonyMode] = useState<HarmonyMode>("analogous");
   const [colorCount, setColorCount] = useState(4);
   const [suggestionCount, setSuggestionCount] = useState(3);
@@ -234,54 +231,27 @@ export function PaletteTab({
 
   const pinnedCount = suggestions.filter((s) => s.pinned).length;
 
+  const hasColors = entries.length > 0;
+
   return (
     <div>
-      {/* CSV Import */}
-      <section className="csv-section">
-        <div className="section-header">
-          <h2>Import Colors</h2>
-        </div>
-        <p className="csv-hint">
-          Paste a comma-separated list of colors (hex, LAB, or named). This
-          replaces your entire color set.
-        </p>
-        <div className="csv-row">
-          <textarea
-            className="csv-input"
-            placeholder={
-              "#8B7355, #E8E0D4, #4A6741, steelblue\nor one per line"
-            }
-            value={csvValue}
-            onChange={(e) => {
-              setCsvValue(e.target.value);
-              setCsvError("");
-            }}
-            rows={3}
-            spellCheck={false}
-          />
-          <button className="btn-import" onClick={handleCsvImport}>
-            Import
-          </button>
-        </div>
-        {csvError && <p className="csv-error">{csvError}</p>}
-      </section>
-
-      {/* Individual color cards */}
+      {/* Your Colors */}
       <section className="locked-colors-section">
         <div className="section-header">
-          <h2>Your Colors</h2>
+          <h2>Your Base Colors</h2>
           <div className="section-header-actions">
-            <button
-              className="btn-clear"
-              onClick={() => {
-                updateEntries([]);
-                onSuggestionsChange([]);
-              }}
-              title="Clear all colors"
-              disabled={entries.length === 0}
-            >
-              Clear All
-            </button>
+            {hasColors && (
+              <button
+                className="btn-clear"
+                onClick={() => {
+                  updateEntries([]);
+                  onSuggestionsChange([]);
+                }}
+                title="Clear all colors"
+              >
+                Clear All
+              </button>
+            )}
             <button
               className="btn-add"
               onClick={handleAdd}
@@ -291,91 +261,144 @@ export function PaletteTab({
             </button>
           </div>
         </div>
-        <div className="color-inputs-grid">
-          {entries.map((entry) => (
-            <ColorInput
-              key={entry.id}
-              color={entry.color}
-              locked={entry.locked}
-              onColorChange={(c) => handleColorChange(entry.id, c)}
-              onToggleLock={() => handleToggleLock(entry.id)}
-              onRemove={() => handleRemove(entry.id)}
-            />
-          ))}
-        </div>
-      </section>
 
-      <HarmonySelector
-        mode={harmonyMode}
-        count={colorCount}
-        suggestions={suggestionCount}
-        onModeChange={setHarmonyMode}
-        onCountChange={setColorCount}
-        onSuggestionsChange={setSuggestionCount}
-        onGenerate={handleGenerate}
-      />
-
-      <section className="palette-section">
-        <h2>
-          {suggestions.length > 0
-            ? `Suggestions (${suggestions.length}${pinnedCount > 0 ? `, ${pinnedCount} pinned` : ""})`
-            : "Palette"}
-        </h2>
-
-        {suggestions.length === 0 && (
-          <SwatchStrip swatches={lockedSwatches} />
+        {!hasColors && suggestions.length === 0 && (
+          <div className="empty-state">
+            <p className="empty-state-text">
+              Start by adding colors you already have (scanned from your space,
+              or colors you love). Or just hit Generate to explore random palettes.
+            </p>
+            <div className="empty-state-actions">
+              <button className="btn-add" onClick={handleAdd}>
+                + Add a Color
+              </button>
+              <button className="btn-generate" onClick={handleGenerate}>
+                Generate Random Palette
+              </button>
+            </div>
+          </div>
         )}
 
-        {suggestions.map((suggestion, idx) => {
-          const swatches: SwatchItem[] = [
-            ...lockedSwatches,
-            ...suggestion.colors.map((c) => ({
-              color: c,
-              locked: false,
-            })),
-          ];
-
-          return (
-            <div
-              key={idx}
-              className={`suggestion-card ${suggestion.pinned ? "suggestion-pinned" : ""}`}
-            >
-              <div className="suggestion-header">
-                <span className="suggestion-label">
-                  Suggestion {idx + 1}
-                  {suggestion.pinned && (
-                    <span className="pinned-badge">pinned</span>
-                  )}
-                </span>
-                <div className="suggestion-actions">
-                  <button
-                    className={`btn-pin ${suggestion.pinned ? "active" : ""}`}
-                    onClick={() => handleTogglePin(idx)}
-                    title={
-                      suggestion.pinned
-                        ? "Unpin suggestion"
-                        : "Pin suggestion"
-                    }
-                  >
-                    {suggestion.pinned ? "📌" : "📌"}
-                    <span className="btn-pin-text">
-                      {suggestion.pinned ? "Unpin" : "Pin"}
-                    </span>
-                  </button>
-                  <button
-                    className="btn-dismiss"
-                    onClick={() => handleRemoveSuggestion(idx)}
-                    title="Remove suggestion"
-                  >
-                    ×
-                  </button>
-                </div>
-              </div>
-              <SwatchStrip swatches={swatches} />
-            </div>
-          );
-        })}
+        {hasColors && (
+          <div className="color-inputs-grid">
+            {entries.map((entry) => (
+              <ColorInput
+                key={entry.id}
+                color={entry.color}
+                locked={entry.locked}
+                onColorChange={(c) => handleColorChange(entry.id, c)}
+                onToggleLock={() => handleToggleLock(entry.id)}
+                onRemove={() => handleRemove(entry.id)}
+              />
+            ))}
+          </div>
+        )}
       </section>
+
+      {/* CSV Import - collapsible, secondary */}
+      {hasColors && (
+        <details className="csv-details">
+          <summary className="csv-summary">Bulk import colors (CSV)</summary>
+          <div className="csv-section">
+            <p className="csv-hint">
+              Paste hex codes, LAB values, or color names separated by commas.
+              This replaces all your current colors.
+            </p>
+            <div className="csv-row">
+              <textarea
+                className="csv-input"
+                placeholder={"#B5651D, #F5F0E8, #9CAF88\nor one per line"}
+                value={csvValue}
+                onChange={(e) => {
+                  setCsvValue(e.target.value);
+                  setCsvError("");
+                }}
+                rows={2}
+                spellCheck={false}
+              />
+              <button className="btn-import" onClick={handleCsvImport}>
+                Import
+              </button>
+            </div>
+            {csvError && <p className="csv-error">{csvError}</p>}
+          </div>
+        </details>
+      )}
+
+      {/* Generation controls */}
+      {(hasColors || suggestions.length > 0) && (
+        <HarmonySelector
+          mode={harmonyMode}
+          count={colorCount}
+          suggestions={suggestionCount}
+          onModeChange={setHarmonyMode}
+          onCountChange={setColorCount}
+          onSuggestionsChange={setSuggestionCount}
+          onGenerate={handleGenerate}
+        />
+      )}
+
+      {/* Suggestions */}
+      {suggestions.length > 0 && (
+        <section className="palette-section">
+          <h2>
+            Suggestions ({suggestions.length}{pinnedCount > 0 ? `, ${pinnedCount} pinned` : ""})
+          </h2>
+          <p className="palette-hint">
+            Pin a palette you like, then use it in the Room Planner tab.
+          </p>
+
+          {suggestions.map((suggestion, idx) => {
+            const swatches: SwatchItem[] = [
+              ...lockedSwatches,
+              ...suggestion.colors.map((c) => ({
+                color: c,
+                locked: false,
+              })),
+            ];
+
+            return (
+              <div
+                key={idx}
+                className={`suggestion-card ${suggestion.pinned ? "suggestion-pinned" : ""}`}
+              >
+                <div className="suggestion-header">
+                  <span className="suggestion-label">
+                    Suggestion {idx + 1}
+                    {suggestion.pinned && (
+                      <span className="pinned-badge">pinned</span>
+                    )}
+                  </span>
+                  <div className="suggestion-actions">
+                    <button
+                      className={`btn-pin ${suggestion.pinned ? "active" : ""}`}
+                      onClick={() => handleTogglePin(idx)}
+                      title={
+                        suggestion.pinned
+                          ? "Unpin suggestion"
+                          : "Pin suggestion"
+                      }
+                    >
+                      {suggestion.pinned ? "📌" : "📌"}
+                      <span className="btn-pin-text">
+                        {suggestion.pinned ? "Unpin" : "Pin"}
+                      </span>
+                    </button>
+                    <button
+                      className="btn-dismiss"
+                      onClick={() => handleRemoveSuggestion(idx)}
+                      title="Remove suggestion"
+                    >
+                      ×
+                    </button>
+                  </div>
+                </div>
+                <SwatchStrip swatches={swatches} />
+              </div>
+            );
+          })}
+        </section>
+      )}
     </div>
   );
 }

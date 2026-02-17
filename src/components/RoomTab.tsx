@@ -164,6 +164,16 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
 
   return (
     <div>
+      {/* Guide if no palettes pinned */}
+      {pinnedSuggestions.length === 0 && baseColors.length === 0 && (
+        <div className="empty-state" style={{ marginBottom: 24 }}>
+          <p className="empty-state-text">
+            Go to the Palette tab first to create and pin a color palette.
+            Then come back here to plan your room.
+          </p>
+        </div>
+      )}
+
       {/* Room & Palette Selectors */}
       <section className="room-selector-section">
         <div className="room-selector-row">

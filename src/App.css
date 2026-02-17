@@ -146,10 +146,59 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* ---- Empty State ---- */
+
+.empty-state {
+  padding: 40px 24px;
+  text-align: center;
+  background: var(--surface);
+  border: 1px dashed var(--border);
+  border-radius: var(--radius);
+}
+
+.empty-state-text {
+  font-size: 0.9rem;
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  line-height: 1.5;
+  max-width: 420px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.empty-state-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
 /* ---- CSV Import Section ---- */
 
+.csv-details {
+  margin-bottom: 24px;
+}
+
+.csv-summary {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+  cursor: pointer;
+  padding: 8px 0;
+}
+
+.csv-summary:hover {
+  color: var(--text);
+}
+
 .csv-section {
-  margin-bottom: 32px;
+  margin-top: 12px;
+  margin-bottom: 0;
+}
+
+.palette-hint {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+  margin-bottom: 16px;
 }
 
 .csv-hint {

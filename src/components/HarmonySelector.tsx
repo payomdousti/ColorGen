@@ -13,6 +13,14 @@ interface HarmonySelectorProps {
 
 const MODES = Object.keys(HARMONY_LABELS) as HarmonyMode[];
 
+const MODE_DESCRIPTIONS: Record<HarmonyMode, string> = {
+  complementary: "Opposite colors for contrast",
+  analogous: "Nearby colors for cohesion",
+  triadic: "Three evenly spaced hues",
+  "split-complementary": "Contrast with nuance",
+  "delta-e-smart": "Perceptually balanced",
+};
+
 export function HarmonySelector({
   mode,
   count,
@@ -26,13 +34,14 @@ export function HarmonySelector({
     <div className="controls-bar">
       <div className="control-group">
         <label className="control-label" htmlFor="harmony-mode">
-          Harmony Mode
+          Color Style
         </label>
         <select
           id="harmony-mode"
           className="control-select"
           value={mode}
           onChange={(e) => onModeChange(e.target.value as HarmonyMode)}
+          title={MODE_DESCRIPTIONS[mode]}
         >
           {MODES.map((m) => (
             <option key={m} value={m}>
@@ -44,7 +53,7 @@ export function HarmonySelector({
 
       <div className="control-group">
         <label className="control-label" htmlFor="color-count">
-          Additional Colors: {count}
+          Colors to generate: {count}
         </label>
         <input
           id="color-count"
@@ -59,7 +68,7 @@ export function HarmonySelector({
 
       <div className="control-group">
         <label className="control-label" htmlFor="suggestion-count">
-          Suggestions: {suggestions}
+          Variations to show: {suggestions}
         </label>
         <input
           id="suggestion-count"
