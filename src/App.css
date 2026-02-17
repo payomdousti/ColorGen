@@ -170,6 +170,26 @@ body {
   display: flex;
   gap: 12px;
   justify-content: center;
+  margin-bottom: 20px;
+}
+
+.csv-inline {
+  display: flex;
+  gap: 8px;
+  max-width: 440px;
+  margin: 0 auto;
+}
+
+.csv-inline .csv-input {
+  flex: 1;
+  font-size: 0.78rem;
+  min-height: 40px;
+}
+
+.csv-inline .btn-import {
+  min-height: 40px;
+  padding: 8px 16px;
+  font-size: 0.8rem;
 }
 
 /* ---- CSV Import Section ---- */

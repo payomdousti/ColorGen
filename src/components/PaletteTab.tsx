@@ -265,17 +265,33 @@ export function PaletteTab({
         {!hasColors && suggestions.length === 0 && (
           <div className="empty-state">
             <p className="empty-state-text">
-              Start by adding colors you already have (scanned from your space,
-              or colors you love). Or just hit Generate to explore random palettes.
+              Add colors you already have, paste a list of hex codes, or generate a random palette to start exploring.
             </p>
             <div className="empty-state-actions">
               <button className="btn-add" onClick={handleAdd}>
                 + Add a Color
               </button>
               <button className="btn-generate" onClick={handleGenerate}>
-                Generate Random Palette
+                Generate Random
               </button>
             </div>
+            <div className="csv-inline">
+              <textarea
+                className="csv-input"
+                placeholder={"Paste hex codes: #B5651D, #F5F0E8, #9CAF88"}
+                value={csvValue}
+                onChange={(e) => {
+                  setCsvValue(e.target.value);
+                  setCsvError("");
+                }}
+                rows={2}
+                spellCheck={false}
+              />
+              <button className="btn-import" onClick={handleCsvImport}>
+                Import
+              </button>
+            </div>
+            {csvError && <p className="csv-error">{csvError}</p>}
           </div>
         )}
 
