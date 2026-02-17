@@ -26,7 +26,7 @@ interface SerializedRoomItem {
 }
 
 export interface AppState {
-  activeTab: "palette" | "room";
+  activeTab: "palette" | "room" | "wardrobe";
 
   // Palette tab
   entries: SerializedEntry[];
