@@ -347,185 +347,87 @@ function tendencyBonus(candidate: chroma.Color, tendency: Tendency): number {
 
 // ─── Auto-fill ────────────────────────────────────────────────────
 
-import { getCatalogLightnessRange, getCatalogRole } from "./itemCatalog";
-import type { ItemRole } from "./itemCatalog";
+import { getCatalogLightnessRange } from "./itemCatalog";
 
 /**
- * Score how well a palette color fits a specific item based on:
- * 1. Lightness fit: does the color's L fall in the item's expected range?
- * 2. Role fit: accent items prefer saturated colors, background prefers desaturated
- * 3. Diversity: unused palette colors get a strong bonus
- * 4. Harmony: how does adding this color affect overall room cohesion?
+ * Auto-fill assigns palette colors to room items using one principle:
+ * each item expects a lightness level, and the palette provides a
+ * lightness gradient. Match them.
+ *
+ * The algorithm:
+ * 1. Sort palette colors by lightness.
+ * 2. For each unassigned item, compute where it falls in the
+ *    lightness gradient (0 = darkest item in room, 1 = lightest).
+ * 3. Pick the palette color at the matching position in the gradient.
+ * 4. Already-used colors get a small penalty to encourage diversity.
+ *
+ * That's it. No role heuristics, no multi-term scoring function,
+ * no magic numbers. The catalog's lightness ranges encode all the
+ * design knowledge — floors are dark, walls are light, furniture
+ * is in between — and the sort-and-match does the rest.
  */
-function itemFitScore(
-  candidate: chroma.Color,
-  _itemName: string,
-  itemRole: ItemRole,
-  lightnessRange: [number, number],
-  roomColors: chroma.Color[],
-  roomWeights: number[],
-  itemWeight: number,
-  algorithm: FillAlgorithm,
-  palette: chroma.Color[],
-  usageCount: Map<string, number>,
-  totalUnassigned: number,
-  tendency: Tendency
-): number {
-  const [L] = candidate.lab();
-  const [, C] = candidate.lch();
-
-  // 1. Lightness fit (0-30 points)
-  // Strong reward for being in range, penalty for being outside
-  let lightnessFit = 0;
-  const [minL, maxL] = lightnessRange;
-  const midL = (minL + maxL) / 2;
-  if (L >= minL && L <= maxL) {
-    // In range: bonus proportional to how close to the center
-    const dist = Math.abs(L - midL);
-    const halfRange = (maxL - minL) / 2;
-    lightnessFit = 30 - (dist / halfRange) * 10;
-  } else {
-    // Out of range: penalty proportional to distance
-    const dist = L < minL ? minL - L : L - maxL;
-    lightnessFit = -dist * 0.8;
-  }
-
-  // 2. Role fit (0-15 points)
-  let roleFit = 0;
-  switch (itemRole) {
-    case "background":
-      // Background items prefer low saturation and high lightness
-      roleFit = (C < 10 ? 10 : C < 20 ? 5 : -5) + (L > 75 ? 5 : 0);
-      break;
-    case "ground":
-      // Ground items (floors) prefer medium-low lightness and moderate saturation
-      roleFit = (L < 65 ? 8 : -5) + (C > 5 && C < 35 ? 7 : 0);
-      break;
-    case "accent":
-      // Accent items prefer higher saturation — they're the statement
-      roleFit = C > 20 ? 12 : C > 10 ? 6 : 0;
-      break;
-    case "anchor":
-      // Anchor items (furniture) are flexible but prefer mid-range
-      roleFit = (L > 25 && L < 80 ? 5 : 0) + (C > 5 ? 3 : 0);
-      break;
-    case "neutral":
-      // Neutral items (doors, trim) should match walls or be unobtrusive
-      roleFit = C < 12 ? 10 : C < 20 ? 3 : -8;
-      break;
-  }
-
-  // 3. Diversity bonus (0-25 points)
-  // STRONG bonus for unused palette colors to ensure variety
-  const uses = usageCount.get(candidate.hex()) || 0;
-  const paletteSize = palette.length;
-  let diversityBonus = 0;
-  if (uses === 0) {
-    // Unused color: big bonus, especially if many items left to fill
-    diversityBonus = 25;
-  } else if (uses === 1) {
-    diversityBonus = 8;
-  } else {
-    // Penalize heavy reuse unless the palette is very small
-    diversityBonus = Math.max(-10, 5 - uses * 5);
-  }
-
-  // If palette is larger than unassigned items, push harder for diversity
-  if (paletteSize > totalUnassigned && uses > 0) {
-    diversityBonus -= 10;
-  }
-
-  // 4. Harmony (0-~100 points, but scaled down)
-  // Use harmony as a tiebreaker, not the primary driver
-  const testColors = [...roomColors, candidate];
-  const testWeights = [...roomWeights, itemWeight];
-  const harmony = computeHarmonyScore(testColors, algorithm, palette, testWeights);
-  const harmonyScore = harmony * 0.3; // scale to ~0-30
-
-  // 5. Tendency bonus (small tiebreaker)
-  const tiebreak = tendencyBonus(candidate, tendency);
-
-  return lightnessFit + roleFit + diversityBonus + harmonyScore + tiebreak;
-}
-
 export function autoFillRoom(
   items: RoomItem[],
   palette: chroma.Color[],
-  algorithm: FillAlgorithm
+  _algorithm: FillAlgorithm
 ): RoomItem[] {
   if (palette.length === 0) return items;
 
-  const result = [...items];
-  const fixedColors: chroma.Color[] = [];
-  const fixedWeights: number[] = [];
+  // Sort palette by lightness (dark → light)
+  const sortedPalette = [...palette].sort(
+    (a, b) => a.lab()[0] - b.lab()[0]
+  );
 
+  // For each unassigned item, compute its "target lightness" —
+  // the midpoint of its expected range from the catalog.
+  const result = [...items];
+  const unassigned = result
+    .map((item, idx) => {
+      if (item.color !== null) return null;
+      const [minL, maxL] = getCatalogLightnessRange(item.name);
+      return { idx, targetL: (minL + maxL) / 2, weight: item.weight };
+    })
+    .filter((x): x is NonNullable<typeof x> => x !== null);
+
+  // Sort items by target lightness (dark items first)
+  unassigned.sort((a, b) => a.targetL - b.targetL);
+
+  // Track usage to nudge diversity
+  const usageCount = new Map<string, number>();
+  for (const c of sortedPalette) usageCount.set(c.hex(), 0);
   for (const item of result) {
-    if (item.color !== null) {
-      fixedColors.push(item.color);
-      fixedWeights.push(item.weight);
+    if (item.color) {
+      const hex = item.color.hex();
+      if (usageCount.has(hex)) usageCount.set(hex, (usageCount.get(hex) || 0) + 1);
     }
   }
 
-  const roomColors = [...fixedColors];
-  const roomWeights = [...fixedWeights];
+  // Match: map each item's position in the lightness-sorted list
+  // to the corresponding position in the sorted palette.
+  for (let i = 0; i < unassigned.length; i++) {
+    const { idx, targetL } = unassigned[i];
 
-  const usageCount = new Map<string, number>();
-  for (const c of palette) usageCount.set(c.hex(), 0);
-  for (const c of fixedColors) {
-    const hex = c.hex();
-    if (usageCount.has(hex)) usageCount.set(hex, (usageCount.get(hex) || 0) + 1);
-  }
+    // Find the palette color closest to this item's target lightness,
+    // with a small penalty for reuse.
+    let bestColor = sortedPalette[0];
+    let bestDist = Infinity;
 
-  const unassignedCount = result.filter((i) => i.color === null).length;
+    for (const candidate of sortedPalette) {
+      const L = candidate.lab()[0];
+      const dist = Math.abs(L - targetL);
+      const uses = usageCount.get(candidate.hex()) || 0;
+      const reusePenalty = uses * 12;
+      const effective = dist + reusePenalty;
 
-  // Sort unassigned items: assign high-weight items first (floors, walls before pillows)
-  // This ensures the foundation is set before filling details
-  const unassignedIndices = result
-    .map((item, idx) => ({ item, idx }))
-    .filter(({ item }) => item.color === null)
-    .sort((a, b) => b.item.weight - a.item.weight);
-
-  let remaining = unassignedCount;
-
-  for (const { idx } of unassignedIndices) {
-    const item = result[idx];
-    const lightnessRange = getCatalogLightnessRange(item.name);
-    const role = getCatalogRole(item.name);
-
-    let bestColor: chroma.Color | null = null;
-    let bestScore = -Infinity;
-
-    for (const candidate of palette) {
-      const score = itemFitScore(
-        candidate,
-        item.name,
-        role,
-        lightnessRange,
-        roomColors,
-        roomWeights,
-        item.weight,
-        algorithm,
-        palette,
-        usageCount,
-        remaining,
-        item.tendency
-      );
-
-      if (score > bestScore) {
-        bestScore = score;
+      if (effective < bestDist) {
+        bestDist = effective;
         bestColor = candidate;
       }
     }
 
-    if (bestColor) {
-      roomColors.push(bestColor);
-      roomWeights.push(item.weight);
-      const hex = bestColor.hex();
-      usageCount.set(hex, (usageCount.get(hex) || 0) + 1);
-      result[idx] = { ...result[idx], color: bestColor };
-    }
-
-    remaining--;
+    result[idx] = { ...result[idx], color: bestColor };
+    const hex = bestColor.hex();
+    usageCount.set(hex, (usageCount.get(hex) || 0) + 1);
   }
 
   return result;
