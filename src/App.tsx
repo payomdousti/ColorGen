@@ -19,8 +19,7 @@ export default function App() {
       <header className="app-header">
         <h1>ColorGen</h1>
         <p className="app-subtitle">
-          Generate palettes, then plan room colors with interior design
-          best practices.
+          Create a personal color palette and plan your rooms.
         </p>
       </header>
 

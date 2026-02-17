@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useEffect } from "react";
 import chroma from "chroma-js";
 import { ROOM_TEMPLATES } from "../engine/roomTemplates";
 import type { RoomItem } from "../engine/roomTemplates";
@@ -39,8 +39,14 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [selectedPaletteIdx, setSelectedPaletteIdx] = useState<number>(-1);
   const [fillAlgorithm, setFillAlgorithm] = useState<FillAlgorithm>("surface-area");
-  // Track which items the user manually assigned (so auto-fill doesn't overwrite them)
   const [manuallyAssigned, setManuallyAssigned] = useState<Set<number>>(new Set());
+
+  // Auto-select first pinned palette when one becomes available
+  useEffect(() => {
+    if (selectedPaletteIdx === -1 && pinnedSuggestions.length > 0) {
+      setSelectedPaletteIdx(0);
+    }
+  }, [pinnedSuggestions.length, selectedPaletteIdx]);
 
   const handleTemplateChange = (value: string) => {
     setSelectedTemplate(value);
@@ -153,15 +159,6 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
 
   const canFill = activePalette.length > 0 && roomItems.length > 0;
 
-  const scoreLabel =
-    harmonyScore >= 80
-      ? "Strong"
-      : harmonyScore >= 60
-        ? "Good"
-        : harmonyScore >= 40
-          ? "Moderate"
-          : "Weak";
-
   return (
     <div>
       {/* Guide if no palettes pinned */}
@@ -240,7 +237,6 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
           </div>
           <div className="harmony-score-value">
             {harmonyScore}
-            <span className="harmony-score-text">{scoreLabel}</span>
           </div>
         </div>
       )}
