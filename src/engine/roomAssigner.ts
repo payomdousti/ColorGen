@@ -322,12 +322,10 @@ import { getCatalogLightnessRange } from "./itemCatalog";
 
 /**
  * Auto-fill: sort items by target lightness, sort palette by lightness,
- * map positions proportionally. Item 0 gets the darkest palette color,
- * item N gets the lightest, everything in between is interpolated.
+ * map positions proportionally. Each item gets a unique position in
+ * the palette gradient.
  *
- * No searching, no penalty tuning, no parameters. Each item gets a
- * unique position in the palette gradient, so no two items share a
- * color unless the palette has fewer colors than items.
+ * One sort, one zip, zero parameters.
  */
 export function autoFillRoom(
   items: RoomItem[],
@@ -336,34 +334,25 @@ export function autoFillRoom(
 ): RoomItem[] {
   if (palette.length === 0) return items;
 
-  // Palette sorted dark → light
   const sorted = [...palette].sort((a, b) => a.lab()[0] - b.lab()[0]);
-
   const result = [...items];
 
-  // Unassigned items with their target lightness from the catalog
   const unassigned = result
     .map((item, idx) => {
       if (item.color !== null) return null;
       const [minL, maxL] = getCatalogLightnessRange(item.name);
       return { idx, targetL: (minL + maxL) / 2 };
     })
-    .filter((x): x is NonNullable<typeof x> => x !== null);
+    .filter((x): x is NonNullable<typeof x> => x !== null)
+    .sort((a, b) => a.targetL - b.targetL);
 
-  // Sort items by target lightness (dark → light)
-  unassigned.sort((a, b) => a.targetL - b.targetL);
-
-  // Map each item's position to a palette position proportionally
   const n = unassigned.length;
   const p = sorted.length;
-
   for (let i = 0; i < n; i++) {
-    // Item i out of n maps to palette position (i / (n-1)) * (p-1)
-    const palettePos = n > 1 ? (i / (n - 1)) * (p - 1) : (p - 1) / 2;
-    const paletteIdx = Math.round(palettePos);
+    const pos = n > 1 ? (i / (n - 1)) * (p - 1) : (p - 1) / 2;
     result[unassigned[i].idx] = {
       ...result[unassigned[i].idx],
-      color: sorted[Math.min(paletteIdx, p - 1)],
+      color: sorted[Math.min(Math.round(pos), p - 1)],
     };
   }
 
