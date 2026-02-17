@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useEffect } from "react";
+import { useState, useCallback, useMemo, useEffect, useImperativeHandle, forwardRef } from "react";
 import chroma from "chroma-js";
 import { ROOM_TEMPLATES } from "../engine/roomTemplates";
 import type { RoomItem } from "../engine/roomTemplates";
@@ -12,6 +12,8 @@ import {
 } from "../engine/roomAssigner";
 import type { FillAlgorithm } from "../engine/roomAssigner";
 import { RoomItemRow } from "./RoomItemRow";
+import { serializeRoomItems, deserializeRoomItems } from "../engine/persistence";
+import type { AppState } from "../engine/persistence";
 
 interface Suggestion {
   colors: chroma.Color[];
@@ -21,6 +23,17 @@ interface Suggestion {
 interface RoomTabProps {
   pinnedSuggestions: Suggestion[];
   baseColors: chroma.Color[];
+  savedState?: AppState | null;
+  onStateChange?: () => void;
+}
+
+export interface RoomTabHandle {
+  getState: () => {
+    roomItems: ReturnType<typeof serializeRoomItems>;
+    selectedTemplate: string;
+    fillAlgorithm: string;
+    manuallyAssigned: number[];
+  };
 }
 
 let nextItemId = 1000;
@@ -35,12 +48,40 @@ function instantiateTemplate(templateIdx: number): RoomItem[] {
   }));
 }
 
-export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
-  const [roomItems, setRoomItems] = useState<RoomItem[]>([]);
-  const [selectedTemplate, setSelectedTemplate] = useState<string>("");
+export const RoomTab = forwardRef<RoomTabHandle, RoomTabProps>(function RoomTab(
+  { pinnedSuggestions, baseColors, savedState, onStateChange },
+  ref
+) {
+  const [roomItems, setRoomItems] = useState<RoomItem[]>(() => {
+    if (savedState?.roomItems?.length) {
+      const restored = deserializeRoomItems(savedState.roomItems);
+      nextItemId = Math.max(nextItemId, ...restored.map((i) => i.id + 1));
+      return restored;
+    }
+    return [];
+  });
+  const [selectedTemplate, setSelectedTemplate] = useState<string>(savedState?.selectedTemplate ?? "");
   const [selectedPaletteIdx, setSelectedPaletteIdx] = useState<number>(-1);
-  const [fillAlgorithm, setFillAlgorithm] = useState<FillAlgorithm>("surface-area");
-  const [manuallyAssigned, setManuallyAssigned] = useState<Set<number>>(new Set());
+  const [fillAlgorithm, setFillAlgorithm] = useState<FillAlgorithm>(
+    (savedState?.fillAlgorithm as FillAlgorithm) ?? "surface-area"
+  );
+  const [manuallyAssigned, setManuallyAssigned] = useState<Set<number>>(
+    new Set(savedState?.manuallyAssigned ?? [])
+  );
+
+  useImperativeHandle(ref, () => ({
+    getState: () => ({
+      roomItems: serializeRoomItems(roomItems),
+      selectedTemplate,
+      fillAlgorithm,
+      manuallyAssigned: Array.from(manuallyAssigned),
+    }),
+  }));
+
+  // Trigger save on room state changes
+  useEffect(() => {
+    onStateChange?.();
+  }, [roomItems, selectedTemplate, fillAlgorithm]);
 
   // Auto-select first pinned palette when one becomes available
   useEffect(() => {
@@ -335,4 +376,4 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
       )}
     </div>
   );
-}
+});

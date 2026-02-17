@@ -1,16 +1,52 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import chroma from "chroma-js";
 import { PaletteTab } from "./components/PaletteTab";
-import type { Suggestion } from "./components/PaletteTab";
+import type { Suggestion, PaletteTabHandle } from "./components/PaletteTab";
 import { RoomTab } from "./components/RoomTab";
+import type { RoomTabHandle } from "./components/RoomTab";
+import {
+  loadState,
+  saveState,
+  deserializeSuggestions,
+  deserializeRoomItems,
+} from "./engine/persistence";
 import "./App.css";
 
 type TabId = "palette" | "room";
 
+const saved = loadState();
+
 export default function App() {
-  const [activeTab, setActiveTab] = useState<TabId>("palette");
-  const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
+  const [activeTab, setActiveTab] = useState<TabId>(saved?.activeTab ?? "palette");
+  const [suggestions, setSuggestions] = useState<Suggestion[]>(
+    saved?.suggestions ? deserializeSuggestions(saved.suggestions) : []
+  );
   const [baseColors, setBaseColors] = useState<chroma.Color[]>([]);
+
+  const paletteRef = useRef<PaletteTabHandle>(null);
+  const roomRef = useRef<RoomTabHandle>(null);
+
+  // Auto-save on any state change
+  const save = useCallback(() => {
+    const paletteState = paletteRef.current?.getState();
+    const roomState = roomRef.current?.getState();
+    saveState({
+      activeTab,
+      entries: paletteState?.entries ?? [],
+      suggestions: paletteState?.suggestions ?? [],
+      harmonyMode: paletteState?.harmonyMode ?? "analogous",
+      colorCount: paletteState?.colorCount ?? 4,
+      suggestionCount: paletteState?.suggestionCount ?? 3,
+      roomItems: roomState?.roomItems ?? [],
+      selectedTemplate: roomState?.selectedTemplate ?? "",
+      fillAlgorithm: roomState?.fillAlgorithm ?? "surface-area",
+      manuallyAssigned: roomState?.manuallyAssigned ?? [],
+    });
+  }, [activeTab]);
+
+  useEffect(() => {
+    save();
+  }, [activeTab, suggestions, baseColors, save]);
 
   const pinnedSuggestions = suggestions.filter((s) => s.pinned);
 
@@ -44,15 +80,20 @@ export default function App() {
       <div className="tab-content" style={{ position: "relative" }}>
         <div className={activeTab === "palette" ? "tab-panel-active" : "tab-panel-hidden"}>
           <PaletteTab
+            ref={paletteRef}
             suggestions={suggestions}
-            onSuggestionsChange={setSuggestions}
-            onBaseColorsChange={setBaseColors}
+            onSuggestionsChange={(s) => { setSuggestions(s); requestAnimationFrame(save); }}
+            onBaseColorsChange={(c) => { setBaseColors(c); requestAnimationFrame(save); }}
+            savedState={saved}
           />
         </div>
         <div className={activeTab === "room" ? "tab-panel-active" : "tab-panel-hidden"}>
           <RoomTab
+            ref={roomRef}
             pinnedSuggestions={pinnedSuggestions}
             baseColors={baseColors}
+            savedState={saved}
+            onStateChange={save}
           />
         </div>
       </div>

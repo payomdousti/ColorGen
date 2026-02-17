@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useImperativeHandle, forwardRef } from "react";
 import chroma from "chroma-js";
 import { ColorInput } from "./ColorInput";
 import { HarmonySelector } from "./HarmonySelector";
@@ -7,6 +7,12 @@ import type { SwatchItem } from "./SwatchStrip";
 import { generateMultiplePalettes } from "../engine/harmonies";
 import type { HarmonyMode } from "../engine/harmonies";
 import { parseColor } from "../engine/parser";
+import {
+  serializeEntries,
+  serializeSuggestions,
+  deserializeEntries,
+} from "../engine/persistence";
+import type { AppState } from "../engine/persistence";
 
 export interface Suggestion {
   colors: chroma.Color[];
@@ -41,19 +47,50 @@ interface PaletteTabProps {
   suggestions: Suggestion[];
   onSuggestionsChange: (suggestions: Suggestion[]) => void;
   onBaseColorsChange: (colors: chroma.Color[]) => void;
+  savedState?: AppState | null;
 }
 
-export function PaletteTab({
+export interface PaletteTabHandle {
+  getState: () => {
+    entries: ReturnType<typeof serializeEntries>;
+    suggestions: ReturnType<typeof serializeSuggestions>;
+    harmonyMode: string;
+    colorCount: number;
+    suggestionCount: number;
+  };
+}
+
+export const PaletteTab = forwardRef<PaletteTabHandle, PaletteTabProps>(function PaletteTab({
   suggestions,
   onSuggestionsChange,
   onBaseColorsChange,
-}: PaletteTabProps) {
-  const [entries, setEntries] = useState<PaletteEntry[]>([]);
-  const [harmonyMode, setHarmonyMode] = useState<HarmonyMode>("analogous");
-  const [colorCount, setColorCount] = useState(4);
-  const [suggestionCount, setSuggestionCount] = useState(3);
+  savedState,
+}, ref) {
+  const [entries, setEntries] = useState<PaletteEntry[]>(() => {
+    if (savedState?.entries?.length) {
+      const restored = deserializeEntries(savedState.entries);
+      nextId = Math.max(nextId, ...restored.map((e) => e.id + 1));
+      return restored as PaletteEntry[];
+    }
+    return [];
+  });
+  const [harmonyMode, setHarmonyMode] = useState<HarmonyMode>(
+    (savedState?.harmonyMode as HarmonyMode) ?? "analogous"
+  );
+  const [colorCount, setColorCount] = useState(savedState?.colorCount ?? 4);
+  const [suggestionCount, setSuggestionCount] = useState(savedState?.suggestionCount ?? 3);
   const [csvValue, setCsvValue] = useState("");
   const [csvError, setCsvError] = useState("");
+
+  useImperativeHandle(ref, () => ({
+    getState: () => ({
+      entries: serializeEntries(entries),
+      suggestions: serializeSuggestions(suggestions),
+      harmonyMode,
+      colorCount,
+      suggestionCount,
+    }),
+  }));
 
   // Sync base colors on mount
   useEffect(() => {
@@ -413,8 +450,8 @@ export function PaletteTab({
               </div>
             );
           })}
-        </section>
-      )}
+      </section>
+    )}
     </div>
   );
-}
+});
