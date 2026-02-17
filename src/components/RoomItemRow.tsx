@@ -31,6 +31,7 @@ export function RoomItemRow({
 }: RoomItemRowProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [stripOpen, setStripOpen] = useState(false);
+  const [hexInput, setHexInput] = useState("");
   const stripRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -68,6 +69,19 @@ export function RoomItemRow({
     setStripOpen(false);
   };
 
+  const handleHexSubmit = () => {
+    const val = hexInput.trim();
+    if (!val) return;
+    try {
+      const color = chroma(val.startsWith("#") ? val : `#${val}`);
+      onUpdate({ ...item, color });
+      setHexInput("");
+      setStripOpen(false);
+    } catch {
+      // invalid hex, ignore
+    }
+  };
+
   return (
     <div className={`room-item-row ${isHurting ? "room-item-clash" : ""}`}>
       <div
@@ -85,20 +99,18 @@ export function RoomItemRow({
         )}
       </div>
 
-      <div className="room-item-details">
-        <input
-          type="text"
-          className="room-item-name"
-          value={item.name}
-          onChange={(e) => onUpdate({ ...item, name: e.target.value })}
-          spellCheck={false}
-        />
-      </div>
+      <input
+        type="text"
+        className="room-item-name"
+        value={item.name}
+        onChange={(e) => onUpdate({ ...item, name: e.target.value })}
+        spellCheck={false}
+      />
 
       {item.color !== null && scoreDelta !== null && (
         <span
           className={`room-item-fit ${isHurting ? "fit-hurt" : isHelping ? "fit-good" : "fit-neutral"}`}
-          title={`${scoreDelta >= 0 ? "+" : ""}${scoreDelta} to cohesion (avg: ${avgDelta >= 0 ? "+" : ""}${Math.round(avgDelta)})`}
+          title={`${scoreDelta >= 0 ? "+" : ""}${scoreDelta} to cohesion`}
         >
           {scoreDelta >= 0 ? `+${scoreDelta}` : scoreDelta}
         </span>
@@ -122,6 +134,15 @@ export function RoomItemRow({
 
       {stripOpen && (
         <div className="palette-strip" ref={stripRef}>
+          <input
+            type="text"
+            className="palette-strip-hex"
+            placeholder="#hex"
+            value={hexInput}
+            onChange={(e) => setHexInput(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleHexSubmit()}
+            spellCheck={false}
+          />
           {palette.map((color, i) => {
             const hex = toHex(color);
             const isSelected = currentHex === hex;

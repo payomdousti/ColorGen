@@ -840,8 +840,8 @@ body {
 }
 
 .room-item-swatch {
-  width: 100px;
-  min-height: 56px;
+  width: 120px;
+  min-height: 48px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
@@ -869,24 +869,11 @@ body {
   opacity: 1;
 }
 
-.room-item-details {
+.room-item-name {
   flex: 1;
   min-width: 0;
-  padding: 6px 12px;
-  display: flex;
-  align-items: center;
-}
-
-.room-item-name-row {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-}
-
-.room-item-name {
-  padding: 4px 8px;
-  font-size: 0.85rem;
+  padding: 4px 10px;
+  font-size: 0.82rem;
   font-weight: 500;
   border: 1px solid transparent;
   border-radius: 4px;
@@ -895,8 +882,6 @@ body {
   outline: none;
   font-family: var(--font);
   transition: border-color 0.15s;
-  flex: 1;
-  min-width: 0;
 }
 
 .room-item-name:focus {
@@ -959,12 +944,14 @@ body {
 .room-item-fit {
   font-size: 0.68rem;
   font-weight: 600;
-  text-transform: uppercase;
   letter-spacing: 0.04em;
-  padding: 2px 8px;
+  padding: 2px 6px;
   border-radius: 4px;
   white-space: nowrap;
   flex-shrink: 0;
+  min-width: 28px;
+  text-align: center;
+  margin-right: 4px;
 }
 
 .fit-good {
@@ -983,17 +970,29 @@ body {
 }
 
 .btn-pick-color {
-  padding: 4px 12px;
+  padding: 4px 10px;
   border: 1px solid var(--border);
   border-radius: 4px;
   background: var(--surface);
   color: var(--text-secondary);
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   font-weight: 500;
   font-family: var(--font);
   cursor: pointer;
   flex-shrink: 0;
   transition: all 0.15s;
+  margin-right: 4px;
+}
+
+.room-item-remove {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-right: 6px;
 }
 
 .btn-pick-color:hover,
@@ -1070,6 +1069,23 @@ body {
   flex-shrink: 0;
   margin-left: auto;
   transition: all 0.15s;
+}
+
+.palette-strip-hex {
+  width: 60px;
+  padding: 4px 6px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  outline: none;
+  flex-shrink: 0;
+}
+
+.palette-strip-hex:focus {
+  border-color: var(--accent);
 }
 
 .palette-strip-browse:hover {
