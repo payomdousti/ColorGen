@@ -1,11 +1,17 @@
+import { useState, useMemo } from "react";
 import chroma from "chroma-js";
 import type { RoomItem, ItemWeight, Tendency } from "../engine/roomTemplates";
 import { WEIGHT_LABELS, TENDENCY_LABELS } from "../engine/roomTemplates";
 import { toHex } from "../engine/parser";
+import { scoreCandidates } from "../engine/roomAssigner";
+import type { FillAlgorithm } from "../engine/roomAssigner";
+import { SwatchPicker } from "./SwatchPicker";
 
 interface RoomItemRowProps {
   item: RoomItem;
   palette: chroma.Color[];
+  otherRoomColors: chroma.Color[];
+  algorithm: FillAlgorithm;
   scoreDelta: number | null;
   avgDelta: number;
   onUpdate: (item: RoomItem) => void;
@@ -20,11 +26,15 @@ const TENDENCIES: Tendency[] = [
 export function RoomItemRow({
   item,
   palette,
+  otherRoomColors,
+  algorithm,
   scoreDelta,
   avgDelta,
   onUpdate,
   onRemove,
 }: RoomItemRowProps) {
+  const [pickerOpen, setPickerOpen] = useState(false);
+
   const bgHex = item.color ? toHex(item.color) : "#e8e5e0";
   const textColor = item.color
     ? chroma.contrast(item.color, "white") > 3
@@ -41,11 +51,18 @@ export function RoomItemRow({
     onUpdate({ ...item, weight: next });
   };
 
+  const candidates = useMemo(
+    () => scoreCandidates(palette, otherRoomColors, algorithm),
+    [palette, otherRoomColors, algorithm]
+  );
+
   return (
     <div className={`room-item-row ${isHurting ? "room-item-clash" : ""}`}>
       <div
         className="room-item-swatch"
-        style={{ backgroundColor: bgHex }}
+        style={{ backgroundColor: bgHex, cursor: "pointer" }}
+        onClick={() => setPickerOpen(true)}
+        title="Click to pick a color"
       >
         <span
           className="room-item-swatch-label"
@@ -97,34 +114,13 @@ export function RoomItemRow({
         </span>
       )}
 
-      <div className="room-item-color-picker">
-        <select
-          className="room-item-color-select"
-          value={item.color ? toHex(item.color) : ""}
-          onChange={(e) => {
-            const val = e.target.value;
-            if (val === "") {
-              onUpdate({ ...item, color: null });
-            } else {
-              try {
-                onUpdate({ ...item, color: chroma(val) });
-              } catch {
-                // ignore
-              }
-            }
-          }}
-        >
-          <option value="">Unassigned</option>
-          {palette.map((c, i) => {
-            const hex = toHex(c).toUpperCase();
-            return (
-              <option key={i} value={toHex(c)}>
-                {hex}
-              </option>
-            );
-          })}
-        </select>
-      </div>
+      <button
+        className="btn-pick-color"
+        onClick={() => setPickerOpen(true)}
+        title="Pick a color"
+      >
+        {item.color ? "Change" : "Pick"}
+      </button>
 
       <button
         className="btn-dismiss room-item-remove"
@@ -133,6 +129,18 @@ export function RoomItemRow({
       >
         ×
       </button>
+
+      {pickerOpen && (
+        <SwatchPicker
+          candidates={candidates}
+          currentColor={item.color}
+          onPick={(color) => {
+            onUpdate({ ...item, color });
+            setPickerOpen(false);
+          }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </div>
   );
 }

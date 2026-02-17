@@ -117,8 +117,8 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
   );
 
   const harmonyScore = useMemo(
-    () => computeHarmonyScore(assignedColors, fillAlgorithm),
-    [assignedColors, fillAlgorithm]
+    () => computeHarmonyScore(assignedColors, fillAlgorithm, activePalette),
+    [assignedColors, fillAlgorithm, activePalette]
   );
 
   // Per-item score delta: positive = helping, negative = hurting
@@ -130,12 +130,12 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
       } else {
         map.set(
           item.id,
-          itemScoreDelta(item.color, assignedColors, fillAlgorithm)
+          itemScoreDelta(item.color, assignedColors, fillAlgorithm, activePalette)
         );
       }
     }
     return map;
-  }, [roomItems, assignedColors, fillAlgorithm]);
+  }, [roomItems, assignedColors, fillAlgorithm, activePalette]);
 
   // Average delta across all assigned items (for relative comparison)
   const allDeltas = Array.from(itemDeltas.values()).filter(
@@ -256,17 +256,25 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
           </div>
 
           <div className="room-items-list">
-            {roomItems.map((item) => (
-              <RoomItemRow
-                key={item.id}
-                item={item}
-                palette={activePalette}
-                scoreDelta={itemDeltas.get(item.id) ?? null}
-                avgDelta={avgDelta}
-                onUpdate={handleUpdateItem}
-                onRemove={() => handleRemoveItem(item.id)}
-              />
-            ))}
+            {roomItems.map((item) => {
+              // Other colors = all assigned colors except this item's
+              const otherColors = assignedColors.filter(
+                (c) => !item.color || c.hex() !== item.color.hex()
+              );
+              return (
+                <RoomItemRow
+                  key={item.id}
+                  item={item}
+                  palette={activePalette}
+                  otherRoomColors={otherColors}
+                  algorithm={fillAlgorithm}
+                  scoreDelta={itemDeltas.get(item.id) ?? null}
+                  avgDelta={avgDelta}
+                  onUpdate={handleUpdateItem}
+                  onRemove={() => handleRemoveItem(item.id)}
+                />
+              );
+            })}
           </div>
 
           {/* Auto-fill controls */}
