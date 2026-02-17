@@ -1,5 +1,36 @@
 import chroma from "chroma-js";
-import type { RoomItem, Tendency } from "./roomTemplates";
+import type { ItemWeight, RoomItem, Tendency } from "./roomTemplates";
+
+// ─── Weight helpers ───────────────────────────────────────────────
+
+const WEIGHT_MULTIPLIER: Record<ItemWeight, number> = {
+  large: 3,
+  medium: 2,
+  small: 1,
+};
+
+export function itemWeightToNumber(w: ItemWeight): number {
+  return WEIGHT_MULTIPLIER[w];
+}
+
+/**
+ * Expand a color array by repeating each color according to its weight.
+ * This makes prominent items contribute more to statistical measures.
+ */
+function expandByWeights(
+  colors: chroma.Color[],
+  weights?: number[]
+): chroma.Color[] {
+  if (!weights || weights.length !== colors.length) return colors;
+  const expanded: chroma.Color[] = [];
+  for (let i = 0; i < colors.length; i++) {
+    const reps = Math.max(1, Math.round(weights[i]));
+    for (let j = 0; j < reps; j++) {
+      expanded.push(colors[i]);
+    }
+  }
+  return expanded;
+}
 
 export type FillAlgorithm =
   | "surface-area"
@@ -77,15 +108,17 @@ function getPaletteHueClusters(palette: chroma.Color[]): number[][] {
 export function computeHarmonyScore(
   colors: chroma.Color[],
   algorithm: FillAlgorithm = "surface-area",
-  palette: chroma.Color[] = []
+  palette: chroma.Color[] = [],
+  weights?: number[]
 ): number {
   if (colors.length < 2) return 100;
 
+  const expanded = expandByWeights(colors, weights);
   const paletteClusters = getPaletteHueClusters(palette);
   const w = ALGORITHM_WEIGHTS[algorithm];
-  const hue = hueCohesionScore(colors, paletteClusters);
-  const sat = saturationCoherenceScore(colors);
-  const light = lightnessReasonablenessScore(colors);
+  const hue = hueCohesionScore(expanded, paletteClusters);
+  const sat = saturationCoherenceScore(expanded);
+  const light = lightnessReasonablenessScore(expanded);
 
   return Math.max(0, Math.min(100, Math.round(
     hue * w.hueCohesion + sat * w.saturationCoherence + light * w.lightnessReasonableness
@@ -108,28 +141,23 @@ function hueCohesionScore(
   const hues = chromatic.map((c) => c.lch()[2] || 0);
 
   // If we have palette context, measure how well room hues
-  // fit within the palette's established clusters
+  // fit within the palette's established clusters.
+  // Continuous: each color gets a fit score based on distance to nearest cluster.
   if (paletteClusters.length > 0) {
-    let outsideCount = 0;
+    let totalFit = 0;
 
     for (const h of hues) {
-      let fitsAny = false;
+      let bestDist = Infinity;
       for (const cluster of paletteClusters) {
         const center = cluster.reduce((s, v) => s + v, 0) / cluster.length;
         const dist = Math.min(Math.abs(h - center), 360 - Math.abs(h - center));
-        if (dist < 50) {
-          fitsAny = true;
-          break;
-        }
+        bestDist = Math.min(bestDist, dist);
       }
-      if (!fitsAny) outsideCount++;
+      // Continuous: 0 dist → 100, 50+ dist → 0
+      totalFit += Math.max(0, 100 - bestDist * 2);
     }
 
-    const outsideRatio = outsideCount / hues.length;
-    if (outsideRatio === 0) return 100;     // all hues fit palette clusters
-    if (outsideRatio < 0.15) return 85;     // mostly fits, one outlier
-    if (outsideRatio < 0.3) return 65;
-    return Math.max(20, 100 - outsideRatio * 150);
+    return totalFit / hues.length;
   }
 
   // Fallback: absolute cluster counting (no palette context)
@@ -163,11 +191,9 @@ function saturationCoherenceScore(colors: chroma.Color[]): number {
   const variance = chromas.reduce((s, c) => s + (c - mean) ** 2, 0) / chromas.length;
   const stdDev = Math.sqrt(variance);
 
-  if (stdDev < 10) return 100;
-  if (stdDev < 18) return 85;
-  if (stdDev < 28) return 65;
-  if (stdDev < 38) return 45;
-  return Math.max(0, 40 - (stdDev - 38));
+  // Continuous scoring: smooth decay from 100 at stdDev=0 to ~20 at stdDev=50
+  if (stdDev <= 5) return 100;
+  return Math.max(0, Math.min(100, 105 - stdDev * 1.8));
 }
 
 function lightnessReasonablenessScore(colors: chroma.Color[]): number {
@@ -175,22 +201,37 @@ function lightnessReasonablenessScore(colors: chroma.Color[]): number {
   const sorted = [...Ls].sort((a, b) => a - b);
   const range = sorted[sorted.length - 1] - sorted[0];
 
-  let rangeScore: number;
-  if (range >= 15 && range <= 55) {
-    rangeScore = 100;
-  } else if (range < 15) {
-    rangeScore = 50 + (range / 15) * 50;
-  } else {
-    rangeScore = Math.max(40, 100 - (range - 55) * 1.2);
+  // Wide range is NORMAL in a room (light walls + dark wood).
+  // Only penalize if the room is too flat (everything the same lightness).
+  let score = 100;
+  if (range < 15) {
+    score -= (15 - range) * 3;
   }
 
-  let jumpPenalty = 0;
+  // Penalize large gaps between adjacent lightness values.
+  // A gap > 20 means there's a "hole" in the tonal range -- no color
+  // bridges between the dark and light zones.
+  const gaps: number[] = [];
   for (let i = 1; i < sorted.length; i++) {
-    const gap = sorted[i] - sorted[i - 1];
-    if (gap > 35) jumpPenalty += 8;
+    gaps.push(sorted[i] - sorted[i - 1]);
   }
 
-  return Math.max(0, Math.min(100, rangeScore - jumpPenalty));
+  for (const gap of gaps) {
+    if (gap > 20) {
+      score -= (gap - 20) * 1.2;
+    }
+  }
+
+  // Reward even spacing: a room with smooth tonal transitions
+  // looks more cohesive than one with clusters and voids.
+  if (gaps.length > 1) {
+    const meanGap = gaps.reduce((s, g) => s + g, 0) / gaps.length;
+    const gapVariance = gaps.reduce((s, g) => s + (g - meanGap) ** 2, 0) / gaps.length;
+    const gapStdDev = Math.sqrt(gapVariance);
+    score -= gapStdDev * 0.4;
+  }
+
+  return Math.max(0, Math.min(100, score));
 }
 
 // ─── Candidate scoring for picker ─────────────────────────────────
@@ -207,7 +248,9 @@ export interface ScoredCandidate {
 export function scoreCandidates(
   palette: chroma.Color[],
   otherRoomColors: chroma.Color[],
-  algorithm: FillAlgorithm
+  algorithm: FillAlgorithm,
+  otherWeights?: number[],
+  candidateWeight?: number
 ): ScoredCandidate[] {
   const paletteHexes = new Set(palette.map((c) => c.hex()));
 
@@ -241,7 +284,10 @@ export function scoreCandidates(
       score = 100;
     } else {
       const testColors = [...otherRoomColors, candidate];
-      score = computeHarmonyScore(testColors, algorithm, palette);
+      const testWeights = otherWeights
+        ? [...otherWeights, candidateWeight ?? 2]
+        : undefined;
+      score = computeHarmonyScore(testColors, algorithm, palette, testWeights);
     }
     return { color: candidate, score, inPalette: paletteHexes.has(candidate.hex()) };
   });
@@ -264,12 +310,18 @@ export function itemScoreDelta(
   color: chroma.Color,
   allColors: chroma.Color[],
   algorithm: FillAlgorithm,
-  palette: chroma.Color[] = []
+  palette: chroma.Color[] = [],
+  allWeights?: number[],
+  itemWeight?: number
 ): number {
+  const idx = allColors.findIndex((c) => c.hex() === color.hex());
   const without = allColors.filter((c) => c.hex() !== color.hex());
+  const weightsWithout = allWeights
+    ? allWeights.filter((_, i) => i !== idx)
+    : undefined;
   if (without.length < 2) return 0;
-  return computeHarmonyScore(allColors, algorithm, palette) -
-    computeHarmonyScore(without, algorithm, palette);
+  return computeHarmonyScore(allColors, algorithm, palette, allWeights) -
+    computeHarmonyScore(without, algorithm, palette, weightsWithout);
 }
 
 // ─── Tendency bonus (tiebreaker) ──────────────────────────────────
@@ -312,14 +364,19 @@ export function autoFillRoom(
   if (palette.length === 0) return items;
 
   const result = [...items];
-  const fixedColors = result
-    .filter((item) => item.color !== null)
-    .map((item) => item.color!);
+  const fixedColors: chroma.Color[] = [];
+  const fixedWeights: number[] = [];
+
+  for (const item of result) {
+    if (item.color !== null) {
+      fixedColors.push(item.color);
+      fixedWeights.push(itemWeightToNumber(item.weight));
+    }
+  }
 
   const roomColors = [...fixedColors];
+  const roomWeights = [...fixedWeights];
 
-  // Track how many times each palette color has been used
-  // to nudge toward palette breadth
   const usageCount = new Map<string, number>();
   for (const c of palette) usageCount.set(c.hex(), 0);
   for (const c of fixedColors) {
@@ -330,19 +387,16 @@ export function autoFillRoom(
   for (let i = 0; i < result.length; i++) {
     if (result[i].color !== null) continue;
 
+    const candidateWeight = itemWeightToNumber(result[i].weight);
     let bestColor: chroma.Color | null = null;
     let bestScore = -Infinity;
 
     for (const candidate of palette) {
       const testColors = [...roomColors, candidate];
-      const cohesion = computeHarmonyScore(testColors, algorithm, palette);
+      const testWeights = [...roomWeights, candidateWeight];
+      const cohesion = computeHarmonyScore(testColors, algorithm, palette, testWeights);
       const tiebreak = tendencyBonus(candidate, result[i].tendency);
 
-      // Diversity nudge: mild preference for less-used palette colors.
-      // This encourages the algorithm to use the breadth of the palette
-      // rather than repeating the safest color. The nudge is small enough
-      // that cohesion still dominates -- it only matters when multiple
-      // colors score similarly.
       const uses = usageCount.get(candidate.hex()) || 0;
       const diversityNudge = Math.max(0, 3 - uses * 1.5);
 
@@ -356,6 +410,7 @@ export function autoFillRoom(
 
     if (bestColor) {
       roomColors.push(bestColor);
+      roomWeights.push(candidateWeight);
       const hex = bestColor.hex();
       usageCount.set(hex, (usageCount.get(hex) || 0) + 1);
       result[i] = { ...result[i], color: bestColor };

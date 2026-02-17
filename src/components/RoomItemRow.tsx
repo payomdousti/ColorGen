@@ -1,9 +1,8 @@
 import { useState, useMemo } from "react";
 import chroma from "chroma-js";
-import type { RoomItem, ItemWeight, Tendency } from "../engine/roomTemplates";
-import { WEIGHT_LABELS, TENDENCY_LABELS } from "../engine/roomTemplates";
+import type { RoomItem } from "../engine/roomTemplates";
 import { toHex } from "../engine/parser";
-import { scoreCandidates } from "../engine/roomAssigner";
+import { scoreCandidates, itemWeightToNumber } from "../engine/roomAssigner";
 import type { FillAlgorithm } from "../engine/roomAssigner";
 import { SwatchPicker } from "./SwatchPicker";
 
@@ -11,6 +10,7 @@ interface RoomItemRowProps {
   item: RoomItem;
   palette: chroma.Color[];
   otherRoomColors: chroma.Color[];
+  otherRoomWeights: number[];
   algorithm: FillAlgorithm;
   scoreDelta: number | null;
   avgDelta: number;
@@ -18,15 +18,11 @@ interface RoomItemRowProps {
   onRemove: () => void;
 }
 
-const WEIGHT_CYCLE: ItemWeight[] = ["large", "medium", "small"];
-const TENDENCIES: Tendency[] = [
-  "any", "lighter", "darker", "warmer", "cooler", "neutral", "bold",
-];
-
 export function RoomItemRow({
   item,
   palette,
   otherRoomColors,
+  otherRoomWeights,
   algorithm,
   scoreDelta,
   avgDelta,
@@ -34,6 +30,7 @@ export function RoomItemRow({
   onRemove,
 }: RoomItemRowProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [stripOpen, setStripOpen] = useState(false);
 
   const bgHex = item.color ? toHex(item.color) : "#e8e5e0";
   const textColor = item.color
@@ -45,24 +42,32 @@ export function RoomItemRow({
   const isHurting = scoreDelta !== null && scoreDelta < avgDelta - 3;
   const isHelping = scoreDelta !== null && scoreDelta > avgDelta + 1;
 
-  const cycleWeight = () => {
-    const idx = WEIGHT_CYCLE.indexOf(item.weight);
-    const next = WEIGHT_CYCLE[(idx + 1) % WEIGHT_CYCLE.length];
-    onUpdate({ ...item, weight: next });
-  };
+  const myWeight = itemWeightToNumber(item.weight);
 
   const candidates = useMemo(
-    () => scoreCandidates(palette, otherRoomColors, algorithm),
-    [palette, otherRoomColors, algorithm]
+    () => scoreCandidates(palette, otherRoomColors, algorithm, otherRoomWeights, myWeight),
+    [palette, otherRoomColors, algorithm, otherRoomWeights, myWeight]
   );
+
+  const currentHex = item.color ? toHex(item.color) : null;
+
+  const handleQuickPick = (color: chroma.Color) => {
+    onUpdate({ ...item, color });
+    setStripOpen(false);
+  };
+
+  const handleUnassign = () => {
+    onUpdate({ ...item, color: null });
+    setStripOpen(false);
+  };
 
   return (
     <div className={`room-item-row ${isHurting ? "room-item-clash" : ""}`}>
       <div
         className="room-item-swatch"
         style={{ backgroundColor: bgHex, cursor: "pointer" }}
-        onClick={() => setPickerOpen(true)}
-        title="Click to pick a color"
+        onClick={() => setStripOpen(!stripOpen)}
+        title="Click to assign a color"
       >
         <span
           className="room-item-swatch-label"
@@ -73,36 +78,13 @@ export function RoomItemRow({
       </div>
 
       <div className="room-item-details">
-        <div className="room-item-name-row">
-          <input
-            type="text"
-            className="room-item-name"
-            value={item.name}
-            onChange={(e) => onUpdate({ ...item, name: e.target.value })}
-            spellCheck={false}
-          />
-          <button
-            className={`weight-badge weight-${item.weight}`}
-            onClick={cycleWeight}
-            title={`Visual weight: ${item.weight}. Click to cycle.`}
-          >
-            {WEIGHT_LABELS[item.weight]}
-          </button>
-          <select
-            className="tendency-select"
-            value={item.tendency}
-            onChange={(e) =>
-              onUpdate({ ...item, tendency: e.target.value as Tendency })
-            }
-            title="Color tendency hint for auto-fill"
-          >
-            {TENDENCIES.map((t) => (
-              <option key={t} value={t}>
-                {TENDENCY_LABELS[t]}
-              </option>
-            ))}
-          </select>
-        </div>
+        <input
+          type="text"
+          className="room-item-name"
+          value={item.name}
+          onChange={(e) => onUpdate({ ...item, name: e.target.value })}
+          spellCheck={false}
+        />
       </div>
 
       {item.color !== null && scoreDelta !== null && (
@@ -115,9 +97,9 @@ export function RoomItemRow({
       )}
 
       <button
-        className="btn-pick-color"
-        onClick={() => setPickerOpen(true)}
-        title="Pick a color"
+        className={`btn-pick-color ${stripOpen ? "active" : ""}`}
+        onClick={() => setStripOpen(!stripOpen)}
+        title="Quick-assign from palette"
       >
         {item.color ? "Change" : "Pick"}
       </button>
@@ -129,6 +111,43 @@ export function RoomItemRow({
       >
         ×
       </button>
+
+      {stripOpen && (
+        <div className="palette-strip">
+          {palette.map((color, i) => {
+            const hex = toHex(color);
+            const isSelected = currentHex === hex;
+            return (
+              <button
+                key={i}
+                className={`palette-strip-swatch ${isSelected ? "selected" : ""}`}
+                style={{ backgroundColor: hex }}
+                onClick={() => handleQuickPick(color)}
+                title={hex.toUpperCase()}
+              />
+            );
+          })}
+          {item.color && (
+            <button
+              className="palette-strip-unassign"
+              onClick={handleUnassign}
+              title="Remove color"
+            >
+              ×
+            </button>
+          )}
+          <button
+            className="palette-strip-browse"
+            onClick={() => {
+              setStripOpen(false);
+              setPickerOpen(true);
+            }}
+            title="Browse all colors with fit scores"
+          >
+            Browse all…
+          </button>
+        </div>
+      )}
 
       {pickerOpen && (
         <SwatchPicker

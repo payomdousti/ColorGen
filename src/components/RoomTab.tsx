@@ -6,6 +6,7 @@ import {
   autoFillRoom,
   computeHarmonyScore,
   itemScoreDelta,
+  itemWeightToNumber,
   FILL_LABELS,
   FILL_DESCRIPTIONS,
 } from "../engine/roomAssigner";
@@ -114,17 +115,24 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
     setManuallyAssigned(new Set());
   };
 
-  const assignedColors = useMemo(
-    () =>
-      roomItems
-        .filter((item) => item.color !== null)
-        .map((item) => item.color!),
+  const assignedItems = useMemo(
+    () => roomItems.filter((item) => item.color !== null),
     [roomItems]
   );
 
+  const assignedColors = useMemo(
+    () => assignedItems.map((item) => item.color!),
+    [assignedItems]
+  );
+
+  const assignedWeights = useMemo(
+    () => assignedItems.map((item) => itemWeightToNumber(item.weight)),
+    [assignedItems]
+  );
+
   const harmonyScore = useMemo(
-    () => computeHarmonyScore(assignedColors, fillAlgorithm, activePalette),
-    [assignedColors, fillAlgorithm, activePalette]
+    () => computeHarmonyScore(assignedColors, fillAlgorithm, activePalette, assignedWeights),
+    [assignedColors, fillAlgorithm, activePalette, assignedWeights]
   );
 
   // Per-item score delta: positive = helping, negative = hurting
@@ -136,12 +144,19 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
       } else {
         map.set(
           item.id,
-          itemScoreDelta(item.color, assignedColors, fillAlgorithm, activePalette)
+          itemScoreDelta(
+            item.color,
+            assignedColors,
+            fillAlgorithm,
+            activePalette,
+            assignedWeights,
+            itemWeightToNumber(item.weight)
+          )
         );
       }
     }
     return map;
-  }, [roomItems, assignedColors, fillAlgorithm, activePalette]);
+  }, [roomItems, assignedColors, fillAlgorithm, activePalette, assignedWeights]);
 
   // Average delta across all assigned items (for relative comparison)
   const allDeltas = Array.from(itemDeltas.values()).filter(
@@ -263,16 +278,19 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
 
           <div className="room-items-list">
             {roomItems.map((item) => {
-              // Other colors = all assigned colors except this item's
-              const otherColors = assignedColors.filter(
-                (c) => !item.color || c.hex() !== item.color.hex()
+              // Other colors/weights = all assigned items except this one
+              const otherItems = assignedItems.filter(
+                (ai) => ai.id !== item.id
               );
+              const otherColors = otherItems.map((ai) => ai.color!);
+              const otherWeights = otherItems.map((ai) => itemWeightToNumber(ai.weight));
               return (
                 <RoomItemRow
                   key={item.id}
                   item={item}
                   palette={activePalette}
                   otherRoomColors={otherColors}
+                  otherRoomWeights={otherWeights}
                   algorithm={fillAlgorithm}
                   scoreDelta={itemDeltas.get(item.id) ?? null}
                   avgDelta={avgDelta}
