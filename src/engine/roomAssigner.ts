@@ -303,7 +303,7 @@ export function itemScoreDelta(
   algorithm: FillAlgorithm,
   palette: chroma.Color[] = [],
   allWeights?: number[],
-  itemWeight?: number
+  _itemWeight?: number
 ): number {
   const idx = allColors.findIndex((c) => c.hex() === color.hex());
   const without = allColors.filter((c) => c.hex() !== color.hex());

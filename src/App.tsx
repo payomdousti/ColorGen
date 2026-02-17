@@ -8,7 +8,6 @@ import {
   loadState,
   saveState,
   deserializeSuggestions,
-  deserializeRoomItems,
 } from "./engine/persistence";
 import "./App.css";
 
