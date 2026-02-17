@@ -1,5 +1,5 @@
 import chroma from "chroma-js";
-import type { RoomItem, Tendency } from "./roomTemplates";
+import type { RoomItem } from "./roomTemplates";
 
 // ─── Weight helpers ───────────────────────────────────────────────
 
@@ -315,35 +315,6 @@ export function itemScoreDelta(
     computeHarmonyScore(without, algorithm, palette, weightsWithout);
 }
 
-// ─── Tendency bonus (tiebreaker) ──────────────────────────────────
-
-function tendencyBonus(candidate: chroma.Color, tendency: Tendency): number {
-  if (tendency === "any") return 0;
-  const [L] = candidate.lab();
-  const [, C, H] = candidate.lch();
-
-  // Tendencies should be meaningful enough to influence picks
-  // when cohesion scores are similar (within ~5 points).
-  switch (tendency) {
-    case "lighter": {
-      // Lighter = high lightness AND low-to-moderate chroma
-      // Strong enough to meaningfully shift wall/sheet picks toward lights
-      const lBonus = L > 80 ? 8 : L > 65 ? 3 : L > 50 ? 0 : -5;
-      const cPenalty = C > 35 ? -4 : C > 20 ? -1 : 0;
-      return lBonus + cPenalty;
-    }
-    case "darker": return L < 40 ? 4 : L < 55 ? 1 : -3;
-    case "warmer": return (H <= 90 || H >= 300) ? 4 : -1;
-    case "cooler": return (H >= 150 && H <= 270) ? 4 : -1;
-    case "neutral": {
-      // Neutral = low chroma AND moderate-to-high lightness
-      const cBonus = C < 8 ? 6 : C < 15 ? 3 : -3;
-      const lBonus2 = L > 50 ? 1 : -1;
-      return cBonus + lBonus2;
-    }
-    case "bold": return C > 30 ? 4 : C > 15 ? 1 : -2;
-  }
-}
 
 // ─── Auto-fill ────────────────────────────────────────────────────
 
