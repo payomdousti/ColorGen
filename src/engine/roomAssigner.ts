@@ -343,13 +343,20 @@ function zipByLightness(
 ) {
   if (items.length === 0 || colors.length === 0) return;
   items.sort((a, b) => a.targetL - b.targetL);
-  // Structural colors sort by L + C*0.5 so neutral darks rank lower
-  // than chromatic darks, keeping vivid colors off floors.
-  colors.sort((a, b) => {
-    const sa = a.lab()[0] + (structural ? a.lch()[1] * 0.5 : 0);
-    const sb = b.lab()[0] + (structural ? b.lch()[1] * 0.5 : 0);
-    return sa - sb;
-  });
+  // Structural lane: sort by lightness but push chromatic colors toward
+  // the middle, away from the floor slot (darkest) and wall slot (lightest).
+  // This keeps vivid leftovers off floors and walls.
+  if (structural) {
+    colors.sort((a, b) => {
+      const La = a.lab()[0], Ca = a.lch()[1];
+      const Lb = b.lab()[0], Cb = b.lch()[1];
+      const sa = La + Ca * 0.5;
+      const sb = Lb + Cb * 0.5;
+      return sa - sb;
+    });
+  } else {
+    colors.sort((a, b) => a.lab()[0] - b.lab()[0]);
+  }
   const n = items.length;
   const p = colors.length;
   for (let i = 0; i < n; i++) {
@@ -383,12 +390,45 @@ export function autoFillRoom(
     }
   }
 
-  // Sort palette by chromaticity (most chromatic first)
-  const byChroma = [...palette].sort((a, b) => b.lch()[1] - a.lch()[1]);
+  // Separate palette into chromatic (the interesting colors) and neutral.
+  const chromatic = [...palette]
+    .filter((c) => c.lch()[1] > 12)
+    .sort((a, b) => b.lch()[1] - a.lch()[1]);
+  const neutral = [...palette]
+    .filter((c) => c.lch()[1] <= 12);
 
-  // Accent items get the top-N most chromatic colors
-  const accentColors = byChroma.slice(0, accentItems.length);
-  const structuralColors = byChroma.slice(accentItems.length);
+  // Select accent colors: pick N most DIVERSE from the chromatic pool.
+  // Greedy: start with the most chromatic, then each subsequent pick
+  // is the one most visually distinct from all prior picks.
+  const accentColors: chroma.Color[] = [];
+  const chromaticRemaining = [...chromatic];
+
+  for (let i = 0; i < accentItems.length && chromaticRemaining.length > 0; i++) {
+    if (i === 0) {
+      accentColors.push(chromaticRemaining.shift()!);
+    } else {
+      let bestIdx = 0;
+      let bestMinDist = -1;
+      for (let j = 0; j < chromaticRemaining.length; j++) {
+        const minDist = Math.min(
+          ...accentColors.map((ac) => chroma.deltaE(chromaticRemaining[j], ac))
+        );
+        if (minDist > bestMinDist) {
+          bestMinDist = minDist;
+          bestIdx = j;
+        }
+      }
+      accentColors.push(chromaticRemaining.splice(bestIdx, 1)[0]);
+    }
+  }
+
+  // Structural gets neutrals. If not enough, take only the
+  // least-chromatic leftovers needed to fill the gap.
+  const needed = Math.max(0, structuralItems.length - neutral.length);
+  const extras = chromaticRemaining
+    .sort((a, b) => a.lch()[1] - b.lch()[1])
+    .slice(0, needed);
+  const structuralColors = [...neutral, ...extras];
 
   // If one group has no colors, give everything to the other
   if (accentColors.length === 0) {
