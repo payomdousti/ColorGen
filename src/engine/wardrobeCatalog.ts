@@ -37,55 +37,75 @@ export const WARDROBE_CATEGORY_LABELS: Record<WardrobeCategory, string> = {
 };
 
 export const WARDROBE_CATALOG: WardrobeItemType[] = [
-  // Bottoms — high visual area, typically neutral
+  // Bottoms
   { name: "Trousers",            weight: 8, category: "bottoms",     lightnessRange: [15, 55], role: "foundation" },
-  { name: "Jeans",               weight: 8, category: "bottoms",     lightnessRange: [20, 60], role: "foundation" },
+  { name: "Wide Trousers",       weight: 8, category: "bottoms",     lightnessRange: [15, 55], role: "foundation" },
+  { name: "Jeans",               weight: 8, category: "bottoms",     lightnessRange: [20, 50], role: "foundation" },
   { name: "Chinos",              weight: 8, category: "bottoms",     lightnessRange: [30, 70], role: "foundation" },
   { name: "Shorts",              weight: 6, category: "bottoms",     lightnessRange: [25, 70], role: "foundation" },
+  { name: "Joggers",             weight: 7, category: "bottoms",     lightnessRange: [15, 50], role: "foundation" },
+  { name: "Drawstring Pants",    weight: 7, category: "bottoms",     lightnessRange: [15, 55], role: "foundation" },
   { name: "Skirt",               weight: 6, category: "bottoms",     lightnessRange: [15, 75], role: "core" },
 
-  // Tops — the most varied category
-  { name: "T-Shirt",             weight: 6, category: "tops",        lightnessRange: [15, 90], role: "core" },
+  // Tops
+  { name: "T-Shirt",             weight: 6, category: "tops",        lightnessRange: [15, 92], role: "core" },
+  { name: "Oversized Tee",       weight: 7, category: "tops",        lightnessRange: [15, 92], role: "core" },
   { name: "Button-Down Shirt",   weight: 6, category: "tops",        lightnessRange: [60, 95], role: "core" },
+  { name: "Band Collar Shirt",   weight: 6, category: "tops",        lightnessRange: [50, 95], role: "core" },
+  { name: "Knit Top",            weight: 6, category: "tops",        lightnessRange: [15, 80], role: "core" },
   { name: "Blouse",              weight: 6, category: "tops",        lightnessRange: [40, 90], role: "core" },
-  { name: "Sweater",             weight: 7, category: "tops",        lightnessRange: [20, 80], role: "core" },
-  { name: "Hoodie",              weight: 7, category: "tops",        lightnessRange: [15, 75], role: "core" },
+  { name: "Sweater",             weight: 7, category: "tops",        lightnessRange: [15, 80], role: "core" },
+  { name: "Turtleneck",          weight: 7, category: "tops",        lightnessRange: [10, 75], role: "core" },
+  { name: "Hoodie",              weight: 7, category: "tops",        lightnessRange: [15, 65], role: "core" },
+  { name: "Henley",              weight: 6, category: "tops",        lightnessRange: [20, 85], role: "core" },
   { name: "Polo",                weight: 6, category: "tops",        lightnessRange: [25, 85], role: "core" },
-  { name: "Tank Top",            weight: 4, category: "tops",        lightnessRange: [15, 90], role: "core" },
+  { name: "Tank Top",            weight: 4, category: "tops",        lightnessRange: [15, 92], role: "core" },
 
-  // Outerwear — high visual impact, often neutral
+  // Outerwear
   { name: "Blazer",              weight: 8, category: "outerwear",   lightnessRange: [15, 55], role: "foundation" },
-  { name: "Overcoat",            weight: 9, category: "outerwear",   lightnessRange: [15, 55], role: "foundation" },
-  { name: "Bomber Jacket",       weight: 7, category: "outerwear",   lightnessRange: [15, 55], role: "foundation" },
-  { name: "Denim Jacket",        weight: 7, category: "outerwear",   lightnessRange: [30, 65], role: "core" },
-  { name: "Leather Jacket",      weight: 8, category: "outerwear",   lightnessRange: [10, 35], role: "foundation" },
-  { name: "Cardigan",            weight: 6, category: "outerwear",   lightnessRange: [25, 80], role: "core" },
-  { name: "Vest",                weight: 5, category: "outerwear",   lightnessRange: [15, 60], role: "core" },
-  { name: "Raincoat",            weight: 7, category: "outerwear",   lightnessRange: [15, 70], role: "foundation" },
+  { name: "Overcoat",            weight: 9, category: "outerwear",   lightnessRange: [15, 50], role: "foundation" },
+  { name: "Workwear Jacket",     weight: 8, category: "outerwear",   lightnessRange: [20, 60], role: "core" },
+  { name: "Chore Coat",          weight: 8, category: "outerwear",   lightnessRange: [20, 60], role: "core" },
+  { name: "Bomber Jacket",       weight: 7, category: "outerwear",   lightnessRange: [15, 50], role: "foundation" },
+  { name: "Denim Jacket",        weight: 7, category: "outerwear",   lightnessRange: [30, 60], role: "core" },
+  { name: "Leather Jacket",      weight: 8, category: "outerwear",   lightnessRange: [10, 30], role: "foundation" },
+  { name: "Cardigan",            weight: 6, category: "outerwear",   lightnessRange: [20, 75], role: "core" },
+  { name: "Vest",                weight: 5, category: "outerwear",   lightnessRange: [15, 55], role: "core" },
+  { name: "Raincoat",            weight: 7, category: "outerwear",   lightnessRange: [15, 65], role: "foundation" },
+  { name: "Parka",               weight: 9, category: "outerwear",   lightnessRange: [15, 45], role: "foundation" },
+  { name: "Shirt Jacket",        weight: 7, category: "outerwear",   lightnessRange: [20, 65], role: "core" },
 
-  // Dresses & Jumpsuits — full-body, high impact
+  // Full-body
   { name: "Dress",               weight: 9, category: "dresses",     lightnessRange: [15, 85], role: "core" },
-  { name: "Jumpsuit",            weight: 9, category: "dresses",     lightnessRange: [15, 75], role: "core" },
-  { name: "Romper",              weight: 7, category: "dresses",     lightnessRange: [25, 85], role: "core" },
+  { name: "Jumpsuit",            weight: 9, category: "dresses",     lightnessRange: [15, 65], role: "core" },
 
-  // Shoes — small area but always visible, often neutral
-  { name: "Dress Shoes",         weight: 3, category: "shoes",       lightnessRange: [10, 40], role: "foundation" },
-  { name: "Sneakers",            weight: 3, category: "shoes",       lightnessRange: [50, 97], role: "accent" },
-  { name: "Boots",               weight: 4, category: "shoes",       lightnessRange: [10, 40], role: "foundation" },
-  { name: "Loafers",             weight: 3, category: "shoes",       lightnessRange: [15, 50], role: "foundation" },
-  { name: "Sandals",             weight: 2, category: "shoes",       lightnessRange: [25, 70], role: "accent" },
-  { name: "Heels",               weight: 3, category: "shoes",       lightnessRange: [10, 50], role: "accent" },
+  // Shoes
+  { name: "Dress Shoes",         weight: 3, category: "shoes",       lightnessRange: [10, 35], role: "foundation" },
+  { name: "Sneakers",            weight: 3, category: "shoes",       lightnessRange: [60, 97], role: "accent" },
+  { name: "Boots",               weight: 4, category: "shoes",       lightnessRange: [10, 35], role: "foundation" },
+  { name: "Chelsea Boots",       weight: 4, category: "shoes",       lightnessRange: [10, 40], role: "foundation" },
+  { name: "Loafers",             weight: 3, category: "shoes",       lightnessRange: [15, 45], role: "foundation" },
+  { name: "Sandals",             weight: 2, category: "shoes",       lightnessRange: [25, 60], role: "accent" },
+  { name: "High-Tops",           weight: 4, category: "shoes",       lightnessRange: [10, 40], role: "foundation" },
+  { name: "Slip-Ons",            weight: 3, category: "shoes",       lightnessRange: [15, 55], role: "foundation" },
 
-  // Accessories — small but impactful accent pieces
-  { name: "Belt",                weight: 1, category: "accessories", lightnessRange: [10, 45], role: "foundation" },
-  { name: "Watch",               weight: 1, category: "accessories", lightnessRange: [20, 80], role: "accent" },
-  { name: "Scarf",               weight: 3, category: "accessories", lightnessRange: [20, 80], role: "accent" },
+  // Accessories
+  { name: "Belt",                weight: 1, category: "accessories", lightnessRange: [10, 40], role: "foundation" },
+  { name: "Watch",               weight: 1, category: "accessories", lightnessRange: [20, 70], role: "accent" },
+  { name: "Scarf",               weight: 3, category: "accessories", lightnessRange: [20, 75], role: "accent" },
+  { name: "Tote Bag",            weight: 4, category: "accessories", lightnessRange: [20, 65], role: "accent" },
+  { name: "Crossbody Bag",       weight: 3, category: "accessories", lightnessRange: [15, 50], role: "accent" },
+  { name: "Beanie",              weight: 2, category: "accessories", lightnessRange: [10, 50], role: "accent" },
+  { name: "Cap",                 weight: 2, category: "accessories", lightnessRange: [15, 55], role: "accent" },
+  { name: "Sunglasses",          weight: 1, category: "accessories", lightnessRange: [10, 30], role: "foundation" },
+  { name: "Bracelet",            weight: 1, category: "accessories", lightnessRange: [20, 70], role: "accent" },
+  { name: "Ring",                weight: 1, category: "accessories", lightnessRange: [30, 80], role: "accent" },
   { name: "Tie",                 weight: 2, category: "accessories", lightnessRange: [15, 65], role: "accent" },
   { name: "Pocket Square",       weight: 1, category: "accessories", lightnessRange: [30, 85], role: "accent" },
-  { name: "Hat",                 weight: 3, category: "accessories", lightnessRange: [15, 70], role: "accent" },
-  { name: "Bag",                 weight: 4, category: "accessories", lightnessRange: [15, 60], role: "accent" },
-  { name: "Sunglasses",          weight: 1, category: "accessories", lightnessRange: [10, 35], role: "foundation" },
-  { name: "Jewelry",             weight: 1, category: "accessories", lightnessRange: [40, 90], role: "accent" },
+  { name: "Hat",                 weight: 3, category: "accessories", lightnessRange: [15, 55], role: "accent" },
+  { name: "Bag",                 weight: 4, category: "accessories", lightnessRange: [15, 55], role: "accent" },
+  { name: "Jewelry",             weight: 1, category: "accessories", lightnessRange: [40, 80], role: "accent" },
+  { name: "Heels",               weight: 3, category: "shoes",       lightnessRange: [10, 45], role: "accent" },
 ];
 
 export function getWardrobeItem(name: string): WardrobeItemType | undefined {

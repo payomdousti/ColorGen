@@ -1,90 +1,119 @@
 /**
- * Wardrobe templates represent capsule wardrobes — curated sets of
- * items that combine to create many outfits. Unlike rooms (one fixed
- * arrangement), a wardrobe is a POOL of pieces that mix and match.
- *
- * Each template defines the items in the capsule. The auto-fill
- * assigns colors using the same two-lane approach as rooms:
- * foundation pieces get neutrals, core/accent pieces get chromatic.
+ * Outfit templates — each represents a single outfit you'd wear.
+ * Designed around: Le Laboureur / Maison Margiela / Issey Miyake /
+ * The Row / Rick Owens / John Elliott / Norse Projects / Bode.
  */
 
-export interface WardrobeTemplate {
+export interface OutfitTemplate {
   name: string;
   description: string;
-  items: { name: string; count: number }[];
+  items: string[];
 }
 
-export const WARDROBE_TEMPLATES: WardrobeTemplate[] = [
+export const OUTFIT_TEMPLATES: OutfitTemplate[] = [
   {
-    name: "Casual Essentials",
-    description: "Everyday basics that mix and match",
-    items: [
-      { name: "Jeans", count: 2 },
-      { name: "Chinos", count: 1 },
-      { name: "T-Shirt", count: 3 },
-      { name: "Button-Down Shirt", count: 2 },
-      { name: "Sweater", count: 2 },
-      { name: "Denim Jacket", count: 1 },
-      { name: "Sneakers", count: 2 },
-      { name: "Belt", count: 1 },
-    ],
+    name: "French Workwear",
+    description: "Le Laboureur chore coat, Margiela tee, dark denim",
+    items: ["Chore Coat", "T-Shirt", "Jeans", "Boots", "Belt"],
   },
   {
-    name: "Smart Casual",
-    description: "Polished but not formal",
-    items: [
-      { name: "Trousers", count: 2 },
-      { name: "Chinos", count: 2 },
-      { name: "Button-Down Shirt", count: 3 },
-      { name: "Polo", count: 2 },
-      { name: "Blazer", count: 1 },
-      { name: "Cardigan", count: 1 },
-      { name: "Loafers", count: 2 },
-      { name: "Belt", count: 1 },
-      { name: "Watch", count: 1 },
-    ],
+    name: "The Row Lunch",
+    description: "Clean knit, tailored wide trousers, slip-ons",
+    items: ["Knit Top", "Wide Trousers", "Slip-Ons", "Tote Bag"],
   },
   {
-    name: "Workwear",
-    description: "Office-ready professional wardrobe",
-    items: [
-      { name: "Trousers", count: 3 },
-      { name: "Button-Down Shirt", count: 4 },
-      { name: "Blazer", count: 2 },
-      { name: "Tie", count: 2 },
-      { name: "Dress Shoes", count: 2 },
-      { name: "Belt", count: 1 },
-      { name: "Watch", count: 1 },
-      { name: "Pocket Square", count: 2 },
-    ],
+    name: "Rick Layered",
+    description: "Dark draped layers",
+    items: ["Tank Top", "Hoodie", "Drawstring Pants", "High-Tops"],
   },
   {
-    name: "Minimal Capsule",
-    description: "The smallest wardrobe that works",
-    items: [
-      { name: "Jeans", count: 1 },
-      { name: "Trousers", count: 1 },
-      { name: "T-Shirt", count: 2 },
-      { name: "Button-Down Shirt", count: 1 },
-      { name: "Sweater", count: 1 },
-      { name: "Overcoat", count: 1 },
-      { name: "Sneakers", count: 1 },
-      { name: "Dress Shoes", count: 1 },
-    ],
+    name: "Norse Minimal",
+    description: "Scandinavian clean lines",
+    items: ["Sweater", "Chinos", "Sneakers", "Watch"],
   },
   {
-    name: "Weekend Getaway",
-    description: "Pack light, look good",
-    items: [
-      { name: "Shorts", count: 2 },
-      { name: "Jeans", count: 1 },
-      { name: "T-Shirt", count: 3 },
-      { name: "Button-Down Shirt", count: 1 },
-      { name: "Hoodie", count: 1 },
-      { name: "Sandals", count: 1 },
-      { name: "Sneakers", count: 1 },
-      { name: "Hat", count: 1 },
-      { name: "Sunglasses", count: 1 },
-    ],
+    name: "Gallery Opening",
+    description: "Oversized Margiela with wide pants",
+    items: ["Oversized Tee", "Wide Trousers", "Loafers", "Bracelet"],
+  },
+  {
+    name: "Issey Evening",
+    description: "Architectural layers for going out",
+    items: ["Turtleneck", "Trousers", "Blazer", "Chelsea Boots"],
+  },
+  {
+    name: "John Elliott Basics",
+    description: "Elevated essential menswear",
+    items: ["T-Shirt", "Joggers", "Sneakers", "Cap"],
+  },
+  {
+    name: "Workwear Layers",
+    description: "French jacket over henley and denim",
+    items: ["Workwear Jacket", "Henley", "Jeans", "Boots", "Watch"],
+  },
+  {
+    name: "All Black",
+    description: "Head-to-toe dark — Rick meets Margiela",
+    items: ["Turtleneck", "Wide Trousers", "Chelsea Boots", "Crossbody Bag"],
+  },
+  {
+    name: "Weekend Venice",
+    description: "LA easy — shirt jacket and drawstring",
+    items: ["Shirt Jacket", "T-Shirt", "Drawstring Pants", "Sandals", "Sunglasses"],
+  },
+  {
+    name: "Smart Overcoat",
+    description: "Overcoat over knit, tailored bottoms",
+    items: ["Overcoat", "Knit Top", "Trousers", "Dress Shoes", "Scarf"],
+  },
+  {
+    name: "Margiela Decon",
+    description: "Oversized proportions, minimal accessories",
+    items: ["Oversized Tee", "Jeans", "Boots", "Ring"],
+  },
+  {
+    name: "Summer Minimal",
+    description: "Warm weather, pared back",
+    items: ["Band Collar Shirt", "Shorts", "Sandals", "Sunglasses"],
+  },
+  {
+    name: "Norse Layered",
+    description: "Cardigan over tee, clean bottoms",
+    items: ["Cardigan", "T-Shirt", "Chinos", "Loafers"],
+  },
+  {
+    name: "Dark Tailored",
+    description: "Blazer with turtleneck, evening-ready",
+    items: ["Blazer", "Turtleneck", "Trousers", "Dress Shoes", "Watch"],
+  },
+  {
+    name: "Studio Day",
+    description: "Comfortable creative work outfit",
+    items: ["Sweater", "Drawstring Pants", "Slip-Ons", "Beanie"],
+  },
+  {
+    name: "Bomber Clean",
+    description: "Bomber over minimal base",
+    items: ["Bomber Jacket", "T-Shirt", "Trousers", "Sneakers"],
+  },
+  {
+    name: "Denim on Denim",
+    description: "Tonal denim with contrast",
+    items: ["Denim Jacket", "T-Shirt", "Jeans", "Chelsea Boots", "Belt"],
+  },
+  {
+    name: "Parka Weather",
+    description: "Cold weather, bundled up",
+    items: ["Parka", "Turtleneck", "Jeans", "Boots", "Beanie"],
+  },
+  {
+    name: "Effortless",
+    description: "Just a great shirt and great pants",
+    items: ["Button-Down Shirt", "Trousers", "Loafers", "Watch"],
+  },
+  {
+    name: "Custom Outfit",
+    description: "Build your own",
+    items: [],
   },
 ];

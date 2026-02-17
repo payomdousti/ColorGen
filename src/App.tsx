@@ -4,6 +4,7 @@ import { PaletteTab } from "./components/PaletteTab";
 import type { Suggestion, PaletteTabHandle } from "./components/PaletteTab";
 import { RoomTab } from "./components/RoomTab";
 import type { RoomTabHandle } from "./components/RoomTab";
+import { WardrobeTab } from "./components/WardrobeTab";
 import {
   loadState,
   saveState,
@@ -11,7 +12,7 @@ import {
 } from "./engine/persistence";
 import "./App.css";
 
-type TabId = "palette" | "room";
+type TabId = "palette" | "room" | "wardrobe";
 
 const saved = loadState();
 
@@ -54,7 +55,7 @@ export default function App() {
       <header className="app-header">
         <h1>ColorGen</h1>
         <p className="app-subtitle">
-          Create a personal color palette and plan your rooms.
+          Create a personal color palette, plan your rooms, build your wardrobe.
         </p>
       </header>
 
@@ -74,9 +75,15 @@ export default function App() {
             <span className="tab-badge">{pinnedSuggestions.length}</span>
           )}
         </button>
+        <button
+          className={`tab-btn ${activeTab === "wardrobe" ? "active" : ""}`}
+          onClick={() => setActiveTab("wardrobe")}
+        >
+          Outfit Builder
+        </button>
       </nav>
 
-      <div className="tab-content" style={{ position: "relative" }}>
+      <div className="tab-content">
         <div className={activeTab === "palette" ? "tab-panel-active" : "tab-panel-hidden"}>
           <PaletteTab
             ref={paletteRef}
@@ -94,6 +101,9 @@ export default function App() {
             savedState={saved}
             onStateChange={save}
           />
+        </div>
+        <div className={activeTab === "wardrobe" ? "tab-panel-active" : "tab-panel-hidden"}>
+          <WardrobeTab pinnedSuggestions={pinnedSuggestions} baseColors={baseColors} />
         </div>
       </div>
     </div>

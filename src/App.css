@@ -110,7 +110,6 @@ body {
 }
 
 .tab-content {
-  position: relative;
 }
 
 .tab-panel-active {
@@ -118,14 +117,7 @@ body {
 }
 
 .tab-panel-hidden {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  visibility: hidden;
-  pointer-events: none;
-  height: 0;
-  overflow: hidden;
+  display: none;
 }
 
 /* ---- Section Headers ---- */
@@ -1371,3 +1363,4 @@ body {
     min-width: 90px;
   }
 }
+
