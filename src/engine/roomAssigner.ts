@@ -359,7 +359,7 @@ import type { ItemRole } from "./itemCatalog";
  */
 function itemFitScore(
   candidate: chroma.Color,
-  itemName: string,
+  _itemName: string,
   itemRole: ItemRole,
   lightnessRange: [number, number],
   roomColors: chroma.Color[],
