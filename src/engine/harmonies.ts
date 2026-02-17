@@ -74,6 +74,43 @@ function generateFromBase(
   }
 }
 
+/**
+ * Every usable interior palette needs anchors: a near-neutral dark
+ * (for floors, wood) and a near-neutral light (for walls, trim).
+ * If the generated palette is missing either, desaturate the
+ * darkest/lightest color to create one.
+ */
+function ensureAnchors(colors: chroma.Color[]): chroma.Color[] {
+  if (colors.length < 2) return colors;
+
+  const result = [...colors];
+
+  // Find darkest and lightest
+  let darkIdx = 0, lightIdx = 0;
+  let darkL = Infinity, lightL = -Infinity;
+  for (let i = 0; i < result.length; i++) {
+    const L = result[i].lab()[0];
+    if (L < darkL) { darkL = L; darkIdx = i; }
+    if (L > lightL) { lightL = L; lightIdx = i; }
+  }
+
+  // If darkest color is too chromatic (C > 15), desaturate it
+  const darkC = result[darkIdx].lch()[1];
+  if (darkC > 15) {
+    const [L, , H] = result[darkIdx].lch();
+    result[darkIdx] = chroma.lch(L, Math.min(darkC, 10), H);
+  }
+
+  // If lightest color is too chromatic (C > 15), desaturate it
+  const lightC = result[lightIdx].lch()[1];
+  if (lightC > 15) {
+    const [L, , H] = result[lightIdx].lch();
+    result[lightIdx] = chroma.lch(L, Math.min(lightC, 8), H);
+  }
+
+  return result;
+}
+
 export function generateMultiplePalettes(
   lockedColors: chroma.Color[],
   mode: HarmonyMode,
@@ -83,7 +120,8 @@ export function generateMultiplePalettes(
 ): chroma.Color[][] {
   const palettes: chroma.Color[][] = [];
   for (let v = 0; v < numSuggestions; v++) {
-    palettes.push(generateHarmony(lockedColors, mode, count, v, batchSeed));
+    const raw = generateHarmony(lockedColors, mode, count, v, batchSeed);
+    palettes.push(ensureAnchors(raw));
   }
   return palettes;
 }
