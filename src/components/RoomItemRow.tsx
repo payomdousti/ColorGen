@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import chroma from "chroma-js";
 import type { RoomItem } from "../engine/roomTemplates";
 import { toHex } from "../engine/parser";
@@ -31,6 +31,13 @@ export function RoomItemRow({
 }: RoomItemRowProps) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [stripOpen, setStripOpen] = useState(false);
+  const stripRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (stripOpen && stripRef.current) {
+      stripRef.current.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+  }, [stripOpen]);
 
   const bgHex = item.color ? toHex(item.color) : "#e8e5e0";
   const textColor = item.color
@@ -69,12 +76,13 @@ export function RoomItemRow({
         onClick={() => setStripOpen(!stripOpen)}
         title="Click to assign a color"
       >
-        <span
-          className="room-item-swatch-label"
-          style={{ color: textColor }}
-        >
-          {item.color ? toHex(item.color).toUpperCase() : "--"}
-        </span>
+        {item.color ? (
+          <span className="room-item-swatch-label" style={{ color: textColor }}>
+            {toHex(item.color).toUpperCase()}
+          </span>
+        ) : (
+          <span className="room-item-swatch-empty">Pick</span>
+        )}
       </div>
 
       <div className="room-item-details">
@@ -113,7 +121,7 @@ export function RoomItemRow({
       </button>
 
       {stripOpen && (
-        <div className="palette-strip">
+        <div className="palette-strip" ref={stripRef}>
           {palette.map((color, i) => {
             const hex = toHex(color);
             const isSelected = currentHex === hex;
