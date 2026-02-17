@@ -432,9 +432,9 @@ export function autoFillRoom(
 
   // If one group has no colors, give everything to the other
   if (accentColors.length === 0) {
-    zipByLightness([...accentItems, ...structuralItems], [...byChroma], result);
+    zipByLightness([...accentItems, ...structuralItems], [...palette], result);
   } else if (structuralColors.length === 0) {
-    zipByLightness([...accentItems, ...structuralItems], [...byChroma], result);
+    zipByLightness([...accentItems, ...structuralItems], [...palette], result);
   } else {
     zipByLightness(accentItems, accentColors, result, false);
     zipByLightness(structuralItems, structuralColors, result, true);
