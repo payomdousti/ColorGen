@@ -42,15 +42,15 @@ export default function App() {
         </button>
       </nav>
 
-      <div className="tab-content">
-        <div style={{ display: activeTab === "palette" ? "block" : "none" }}>
+      <div className="tab-content" style={{ position: "relative" }}>
+        <div className={activeTab === "palette" ? "tab-panel-active" : "tab-panel-hidden"}>
           <PaletteTab
             suggestions={suggestions}
             onSuggestionsChange={setSuggestions}
             onBaseColorsChange={setBaseColors}
           />
         </div>
-        <div style={{ display: activeTab === "room" ? "block" : "none" }}>
+        <div className={activeTab === "room" ? "tab-panel-active" : "tab-panel-hidden"}>
           <RoomTab
             pinnedSuggestions={pinnedSuggestions}
             baseColors={baseColors}

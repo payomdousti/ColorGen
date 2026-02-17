@@ -1,5 +1,6 @@
 import chroma from "chroma-js";
-import type { RoomItem } from "../engine/roomTemplates";
+import type { RoomItem, ItemWeight, Tendency } from "../engine/roomTemplates";
+import { WEIGHT_LABELS, TENDENCY_LABELS } from "../engine/roomTemplates";
 import { toHex } from "../engine/parser";
 
 interface RoomItemRowProps {
@@ -10,6 +11,11 @@ interface RoomItemRowProps {
   onUpdate: (item: RoomItem) => void;
   onRemove: () => void;
 }
+
+const WEIGHT_CYCLE: ItemWeight[] = ["large", "medium", "small"];
+const TENDENCIES: Tendency[] = [
+  "any", "lighter", "darker", "warmer", "cooler", "neutral", "bold",
+];
 
 export function RoomItemRow({
   item,
@@ -26,11 +32,14 @@ export function RoomItemRow({
       : "#222"
     : "#aaa";
 
-  // An item is "hurting" if its delta is significantly worse than average
-  const isHurting =
-    scoreDelta !== null && scoreDelta < avgDelta - 3;
-  const isHelping =
-    scoreDelta !== null && scoreDelta > avgDelta + 1;
+  const isHurting = scoreDelta !== null && scoreDelta < avgDelta - 3;
+  const isHelping = scoreDelta !== null && scoreDelta > avgDelta + 1;
+
+  const cycleWeight = () => {
+    const idx = WEIGHT_CYCLE.indexOf(item.weight);
+    const next = WEIGHT_CYCLE[(idx + 1) % WEIGHT_CYCLE.length];
+    onUpdate({ ...item, weight: next });
+  };
 
   return (
     <div className={`room-item-row ${isHurting ? "room-item-clash" : ""}`}>
@@ -47,19 +56,42 @@ export function RoomItemRow({
       </div>
 
       <div className="room-item-details">
-        <input
-          type="text"
-          className="room-item-name"
-          value={item.name}
-          onChange={(e) => onUpdate({ ...item, name: e.target.value })}
-          spellCheck={false}
-        />
+        <div className="room-item-name-row">
+          <input
+            type="text"
+            className="room-item-name"
+            value={item.name}
+            onChange={(e) => onUpdate({ ...item, name: e.target.value })}
+            spellCheck={false}
+          />
+          <button
+            className={`weight-badge weight-${item.weight}`}
+            onClick={cycleWeight}
+            title={`Visual weight: ${item.weight}. Click to cycle.`}
+          >
+            {WEIGHT_LABELS[item.weight]}
+          </button>
+          <select
+            className="tendency-select"
+            value={item.tendency}
+            onChange={(e) =>
+              onUpdate({ ...item, tendency: e.target.value as Tendency })
+            }
+            title="Color tendency hint for auto-fill"
+          >
+            {TENDENCIES.map((t) => (
+              <option key={t} value={t}>
+                {TENDENCY_LABELS[t]}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       {item.color !== null && scoreDelta !== null && (
         <span
           className={`room-item-fit ${isHurting ? "fit-hurt" : isHelping ? "fit-good" : "fit-neutral"}`}
-          title={`${scoreDelta >= 0 ? "+" : ""}${scoreDelta} to harmony (avg: ${avgDelta >= 0 ? "+" : ""}${Math.round(avgDelta)})`}
+          title={`${scoreDelta >= 0 ? "+" : ""}${scoreDelta} to cohesion (avg: ${avgDelta >= 0 ? "+" : ""}${Math.round(avgDelta)})`}
         >
           {scoreDelta >= 0 ? `+${scoreDelta}` : scoreDelta}
         </span>

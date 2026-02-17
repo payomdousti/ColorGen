@@ -15,10 +15,6 @@ export const HARMONY_LABELS: Record<HarmonyMode, string> = {
   "delta-e-smart": "Delta-E Smart",
 };
 
-/**
- * Simple seeded PRNG (mulberry32) so each variation index
- * produces a deterministic but different set of colors.
- */
 function mulberry32(seed: number) {
   return () => {
     seed |= 0;
@@ -31,8 +27,7 @@ function mulberry32(seed: number) {
 
 /**
  * Generate `count` new colors that harmonize with the given locked colors.
- * The `variation` parameter (0-based) seeds the randomness so each
- * variation produces a distinct but reproducible palette.
+ * If no locked colors, generates a random palette from scratch.
  */
 export function generateHarmony(
   lockedColors: chroma.Color[],
@@ -41,29 +36,44 @@ export function generateHarmony(
   variation: number = 0,
   batchSeed: number = 0
 ): chroma.Color[] {
-  if (lockedColors.length === 0 || count <= 0) return [];
+  if (count <= 0) return [];
 
   const rng = mulberry32(batchSeed + variation * 7919);
 
+  // No locked colors: generate a random base, then build from it
+  if (lockedColors.length === 0) {
+    const baseHue = rng() * 360;
+    const baseL = 40 + rng() * 30;
+    const baseC = 15 + rng() * 40;
+    const base = chroma.lch(baseL, baseC, baseHue);
+    return generateFromBase([base], mode, count, rng);
+  }
+
+  return generateFromBase(lockedColors, mode, count, rng);
+}
+
+function generateFromBase(
+  bases: chroma.Color[],
+  mode: HarmonyMode,
+  count: number,
+  rng: () => number
+): chroma.Color[] {
   switch (mode) {
     case "complementary":
-      return generateComplementary(lockedColors, count, rng);
+      return genComplementary(bases, count, rng);
     case "analogous":
-      return generateAnalogous(lockedColors, count, rng);
+      return genAnalogous(bases, count, rng);
     case "triadic":
-      return generateTriadic(lockedColors, count, rng);
+      return genTriadic(bases, count, rng);
     case "split-complementary":
-      return generateSplitComplementary(lockedColors, count, rng);
+      return genSplitComplementary(bases, count, rng);
     case "delta-e-smart":
-      return generateDeltaESmart(lockedColors, count, rng);
+      return genDeltaESmart(bases, count, rng);
     default:
-      return generateAnalogous(lockedColors, count, rng);
+      return genAnalogous(bases, count, rng);
   }
 }
 
-/**
- * Generate multiple palette suggestions at once.
- */
 export function generateMultiplePalettes(
   lockedColors: chroma.Color[],
   mode: HarmonyMode,
@@ -78,139 +88,126 @@ export function generateMultiplePalettes(
   return palettes;
 }
 
+// ─── Utilities ────────────────────────────────────────────────────
+
 function rotateHue(color: chroma.Color, degrees: number): chroma.Color {
   const [l, c, h] = color.lch();
   const newHue = ((h || 0) + degrees + 360) % 360;
   return chroma.lch(l, c, newHue);
 }
 
-function varyLightness(color: chroma.Color, offset: number): chroma.Color {
+function varyLCH(
+  color: chroma.Color,
+  dL: number,
+  dC: number,
+  dH: number
+): chroma.Color {
   const [l, c, h] = color.lch();
-  const newL = Math.max(10, Math.min(95, l + offset));
-  return chroma.lch(newL, c, h);
+  return chroma.lch(
+    Math.max(8, Math.min(97, l + dL)),
+    Math.max(0, Math.min(130, c + dC)),
+    ((h || 0) + dH + 360) % 360
+  );
 }
 
-function varyChroma(color: chroma.Color, offset: number): chroma.Color {
-  const [l, c, h] = color.lch();
-  const newC = Math.max(0, Math.min(130, c + offset));
-  return chroma.lch(l, newC, h);
-}
+// ─── Generators ───────────────────────────────────────────────────
 
-/**
- * Complementary: rotate hue 180deg, then vary with seeded randomness.
- */
-function generateComplementary(
-  locked: chroma.Color[],
+function genComplementary(
+  bases: chroma.Color[],
   count: number,
   rng: () => number
 ): chroma.Color[] {
   const results: chroma.Color[] = [];
-  const baseComplements = locked.map((c) => rotateHue(c, 180));
+  const complements = bases.map((c) => rotateHue(c, 180));
+  const allBases = [...complements, ...bases];
 
   for (let i = 0; i < count; i++) {
-    const base = baseComplements[i % baseComplements.length];
-    const hueShift = (rng() - 0.5) * 24;
-    const lightnessShift = (rng() - 0.5) * 30;
-    const chromaShift = (rng() - 0.5) * 20;
+    const base = allBases[i % allBases.length];
     results.push(
-      varyChroma(varyLightness(rotateHue(base, hueShift), lightnessShift), chromaShift)
-    );
-  }
-
-  return results;
-}
-
-/**
- * Analogous: spread within +/-30deg of locked hues, with variation.
- */
-function generateAnalogous(
-  locked: chroma.Color[],
-  count: number,
-  rng: () => number
-): chroma.Color[] {
-  const results: chroma.Color[] = [];
-  const spreadRange = 35;
-
-  for (let i = 0; i < count; i++) {
-    const base = locked[i % locked.length];
-    const hueOffset = (rng() - 0.5) * 2 * spreadRange;
-    const lightnessShift = (rng() - 0.5) * 30;
-    const chromaShift = (rng() - 0.5) * 20;
-    results.push(
-      varyChroma(varyLightness(rotateHue(base, hueOffset), lightnessShift), chromaShift)
-    );
-  }
-
-  return results;
-}
-
-/**
- * Triadic: rotate locked hues by ~120deg and ~240deg, with jitter.
- */
-function generateTriadic(
-  locked: chroma.Color[],
-  count: number,
-  rng: () => number
-): chroma.Color[] {
-  const results: chroma.Color[] = [];
-  const offsets = [120, 240];
-
-  for (let i = 0; i < count; i++) {
-    const base = locked[i % locked.length];
-    const offset = offsets[i % offsets.length];
-    const hueJitter = (rng() - 0.5) * 20;
-    const lightnessShift = (rng() - 0.5) * 30;
-    const chromaShift = (rng() - 0.5) * 20;
-    results.push(
-      varyChroma(
-        varyLightness(rotateHue(base, offset + hueJitter), lightnessShift),
-        chromaShift
+      varyLCH(
+        base,
+        (rng() - 0.5) * 60,  // wide lightness range
+        (rng() - 0.5) * 50,  // wide chroma range
+        (rng() - 0.5) * 30   // moderate hue jitter
       )
     );
   }
-
   return results;
 }
 
-/**
- * Split-complementary: rotate by ~150deg and ~210deg, with jitter.
- */
-function generateSplitComplementary(
-  locked: chroma.Color[],
+function genAnalogous(
+  bases: chroma.Color[],
   count: number,
   rng: () => number
 ): chroma.Color[] {
   const results: chroma.Color[] = [];
-  const offsets = [150, 210];
 
   for (let i = 0; i < count; i++) {
-    const base = locked[i % locked.length];
-    const offset = offsets[i % offsets.length];
-    const hueJitter = (rng() - 0.5) * 20;
-    const lightnessShift = (rng() - 0.5) * 30;
-    const chromaShift = (rng() - 0.5) * 20;
+    const base = bases[i % bases.length];
     results.push(
-      varyChroma(
-        varyLightness(rotateHue(base, offset + hueJitter), lightnessShift),
-        chromaShift
+      varyLCH(
+        base,
+        (rng() - 0.5) * 60,  // wide lightness
+        (rng() - 0.5) * 50,  // wide chroma
+        (rng() - 0.5) * 70   // +/-35deg hue spread
       )
     );
   }
-
   return results;
 }
 
-/**
- * Delta-E Smart: generate candidates in LAB space, score by distance
- * to locked colors, pick mutually distinct ones. The RNG shuffles
- * candidates to produce different selections per variation.
- */
-function generateDeltaESmart(
-  locked: chroma.Color[],
+function genTriadic(
+  bases: chroma.Color[],
   count: number,
   rng: () => number
 ): chroma.Color[] {
-  const targetDist = 30 + rng() * 20;
+  const results: chroma.Color[] = [];
+  const offsets = [0, 120, 240];
+
+  for (let i = 0; i < count; i++) {
+    const base = bases[i % bases.length];
+    const offset = offsets[i % offsets.length];
+    results.push(
+      varyLCH(
+        rotateHue(base, offset),
+        (rng() - 0.5) * 60,
+        (rng() - 0.5) * 50,
+        (rng() - 0.5) * 30  // jitter around the triadic points
+      )
+    );
+  }
+  return results;
+}
+
+function genSplitComplementary(
+  bases: chroma.Color[],
+  count: number,
+  rng: () => number
+): chroma.Color[] {
+  const results: chroma.Color[] = [];
+  const offsets = [0, 150, 210];
+
+  for (let i = 0; i < count; i++) {
+    const base = bases[i % bases.length];
+    const offset = offsets[i % offsets.length];
+    results.push(
+      varyLCH(
+        rotateHue(base, offset),
+        (rng() - 0.5) * 60,
+        (rng() - 0.5) * 50,
+        (rng() - 0.5) * 30
+      )
+    );
+  }
+  return results;
+}
+
+function genDeltaESmart(
+  bases: chroma.Color[],
+  count: number,
+  rng: () => number
+): chroma.Color[] {
+  const targetDist = 25 + rng() * 25;
   const candidates: { color: chroma.Color; score: number }[] = [];
 
   for (let L = 15; L <= 90; L += 8) {
@@ -219,15 +216,14 @@ function generateDeltaESmart(
         try {
           const c = chroma.lab(L, a, b);
           let score = 0;
-          for (const lc of locked) {
-            const dist = chroma.deltaE(c, lc);
+          for (const bc of bases) {
+            const dist = chroma.deltaE(c, bc);
             score += (dist - targetDist) ** 2;
           }
-          // Add small random noise to break ties differently per variation
-          score += rng() * 5;
+          score += rng() * 10; // noise per variation
           candidates.push({ color: c, score });
         } catch {
-          // skip invalid LAB values
+          // skip
         }
       }
     }
@@ -235,17 +231,15 @@ function generateDeltaESmart(
 
   candidates.sort((a, b) => a.score - b.score);
 
-  const minMutualDist = 12 + rng() * 8;
+  const minDist = 10 + rng() * 10;
   const picked: chroma.Color[] = [];
 
   for (const candidate of candidates) {
     if (picked.length >= count) break;
-    const isFarEnough = picked.every(
-      (p) => chroma.deltaE(candidate.color, p) >= minMutualDist
+    const ok = picked.every(
+      (p) => chroma.deltaE(candidate.color, p) >= minDist
     );
-    if (isFarEnough) {
-      picked.push(candidate.color);
-    }
+    if (ok) picked.push(candidate.color);
   }
 
   return picked;

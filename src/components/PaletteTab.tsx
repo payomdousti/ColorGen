@@ -171,8 +171,6 @@ export function PaletteTab({
       .filter((e) => e.locked && e.color !== null)
       .map((e) => e.color!);
 
-    if (lockedColors.length === 0) return;
-
     const pinned = suggestions.filter((s) => s.pinned);
     const slotsToFill = suggestionCount - pinned.length;
 

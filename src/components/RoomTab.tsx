@@ -38,10 +38,13 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
   const [roomItems, setRoomItems] = useState<RoomItem[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [selectedPaletteIdx, setSelectedPaletteIdx] = useState<number>(-1);
-  const [fillAlgorithm, setFillAlgorithm] = useState<FillAlgorithm>("contrast");
+  const [fillAlgorithm, setFillAlgorithm] = useState<FillAlgorithm>("surface-area");
+  // Track which items the user manually assigned (so auto-fill doesn't overwrite them)
+  const [manuallyAssigned, setManuallyAssigned] = useState<Set<number>>(new Set());
 
   const handleTemplateChange = (value: string) => {
     setSelectedTemplate(value);
+    setManuallyAssigned(new Set());
     if (value === "custom") {
       setRoomItems([]);
     } else {
@@ -55,7 +58,7 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
   const handleAddItem = () => {
     setRoomItems((prev) => [
       ...prev,
-      { id: nextItemId++, name: "New Item", color: null },
+      { id: nextItemId++, name: "New Item", color: null, weight: "medium", tendency: "any" as const },
     ]);
   };
 
@@ -63,6 +66,16 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
     setRoomItems((prev) =>
       prev.map((item) => (item.id === updated.id ? updated : item))
     );
+    // If user is assigning/unassigning a color, track it
+    if (updated.color !== null) {
+      setManuallyAssigned((prev) => new Set(prev).add(updated.id));
+    } else {
+      setManuallyAssigned((prev) => {
+        const next = new Set(prev);
+        next.delete(updated.id);
+        return next;
+      });
+    }
   }, []);
 
   const handleRemoveItem = useCallback((id: number) => {
@@ -82,12 +95,17 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
 
   const handleAutoFill = () => {
     if (activePalette.length === 0) return;
-    const filled = autoFillRoom(roomItems, activePalette, fillAlgorithm);
+    // Clear auto-assigned colors first, keep manually assigned ones
+    const cleared = roomItems.map((item) =>
+      manuallyAssigned.has(item.id) ? item : { ...item, color: null }
+    );
+    const filled = autoFillRoom(cleared, activePalette, fillAlgorithm);
     setRoomItems(filled);
   };
 
   const handleClearAssignments = () => {
     setRoomItems((prev) => prev.map((item) => ({ ...item, color: null })));
+    setManuallyAssigned(new Set());
   };
 
   const assignedColors = useMemo(
@@ -133,12 +151,7 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
   ).length;
   const assignedCount = assignedColors.length;
 
-  // How many palette colors are still available (not already assigned)?
-  const usedHexes = new Set(assignedColors.map((c) => c.hex()));
-  const availableCount = activePalette.filter(
-    (c) => !usedHexes.has(c.hex())
-  ).length;
-  const canFill = unassignedCount > 0 && availableCount > 0;
+  const canFill = activePalette.length > 0 && roomItems.length > 0;
 
   const scoreLabel =
     harmonyScore >= 80
@@ -278,11 +291,11 @@ export function RoomTab({ pinnedSuggestions, baseColors }: RoomTabProps) {
                 onClick={handleAutoFill}
                 disabled={!canFill}
               >
-                {unassignedCount === 0
-                  ? "All Assigned"
-                  : availableCount === 0
-                    ? "No palette colors left"
-                    : `Auto-Fill (${availableCount} color${availableCount > 1 ? "s" : ""} available)`}
+                {activePalette.length === 0
+                  ? "No palette selected"
+                  : unassignedCount > 0
+                    ? `Auto-Fill ${unassignedCount} Item${unassignedCount > 1 ? "s" : ""}`
+                    : "Re-Fill"}
               </button>
             </div>
           )}
