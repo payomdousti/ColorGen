@@ -320,40 +320,77 @@ export function itemScoreDelta(
 
 import { getCatalogLightnessRange } from "./itemCatalog";
 
+import { getCatalogRole } from "./itemCatalog";
+
 /**
- * Auto-fill: sort items by target lightness, sort palette by lightness,
- * map positions proportionally. Each item gets a unique position in
- * the palette gradient.
+ * Auto-fill in two passes:
  *
- * One sort, one zip, zero parameters.
+ * 1. Accent items get first pick of the most chromatic palette colors.
+ * 2. Structural items get the remaining (most neutral) colors.
+ *
+ * Within each pass: sort by lightness, zip proportionally.
+ *
+ * This ensures chromatic colors land on accent walls, couches, and rugs
+ * while floors, walls, and doors stay neutral — regardless of the
+ * palette's composition.
  */
+
+function zipByLightness(
+  items: { idx: number; targetL: number }[],
+  colors: chroma.Color[],
+  result: RoomItem[]
+) {
+  if (items.length === 0 || colors.length === 0) return;
+  items.sort((a, b) => a.targetL - b.targetL);
+  colors.sort((a, b) => a.lab()[0] - b.lab()[0]);
+  const n = items.length;
+  const p = colors.length;
+  for (let i = 0; i < n; i++) {
+    const pos = n > 1 ? (i / (n - 1)) * (p - 1) : (p - 1) / 2;
+    const ci = Math.min(Math.round(pos), p - 1);
+    result[items[i].idx] = { ...result[items[i].idx], color: colors[ci] };
+  }
+}
+
 export function autoFillRoom(
   items: RoomItem[],
   palette: chroma.Color[],
   _algorithm: FillAlgorithm
 ): RoomItem[] {
   if (palette.length === 0) return items;
-
-  const sorted = [...palette].sort((a, b) => a.lab()[0] - b.lab()[0]);
   const result = [...items];
 
-  const unassigned = result
-    .map((item, idx) => {
-      if (item.color !== null) return null;
-      const [minL, maxL] = getCatalogLightnessRange(item.name);
-      return { idx, targetL: (minL + maxL) / 2 };
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== null)
-    .sort((a, b) => a.targetL - b.targetL);
+  // Separate items by role
+  const accentItems: { idx: number; targetL: number }[] = [];
+  const structuralItems: { idx: number; targetL: number }[] = [];
 
-  const n = unassigned.length;
-  const p = sorted.length;
-  for (let i = 0; i < n; i++) {
-    const pos = n > 1 ? (i / (n - 1)) * (p - 1) : (p - 1) / 2;
-    result[unassigned[i].idx] = {
-      ...result[unassigned[i].idx],
-      color: sorted[Math.min(Math.round(pos), p - 1)],
-    };
+  for (let i = 0; i < result.length; i++) {
+    if (result[i].color !== null) continue;
+    const [minL, maxL] = getCatalogLightnessRange(result[i].name);
+    const targetL = (minL + maxL) / 2;
+    const role = getCatalogRole(result[i].name);
+    if (role === "accent" || role === "anchor") {
+      accentItems.push({ idx: i, targetL });
+    } else {
+      structuralItems.push({ idx: i, targetL });
+    }
+  }
+
+  // Sort palette by chromaticity (most chromatic first)
+  const byChroma = [...palette].sort((a, b) => b.lch()[1] - a.lch()[1]);
+
+  // Accent items get the top-N most chromatic colors
+  const accentColors = byChroma.slice(0, accentItems.length);
+  const structuralColors = byChroma.slice(accentItems.length);
+
+  // If one group has no colors, give everything to the other
+  if (accentColors.length === 0) {
+    zipByLightness([...accentItems, ...structuralItems], [...byChroma], result);
+  } else if (structuralColors.length === 0) {
+    zipByLightness([...accentItems, ...structuralItems], [...byChroma], result);
+  } else {
+    zipByLightness(accentItems, accentColors, result);
+    zipByLightness(structuralItems, structuralColors, result);
   }
 
   return result;

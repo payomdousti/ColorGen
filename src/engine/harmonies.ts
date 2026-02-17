@@ -77,35 +77,30 @@ function generateFromBase(
 /**
  * Every usable interior palette needs anchors: a near-neutral dark
  * (for floors, wood) and a near-neutral light (for walls, trim).
- * If the generated palette is missing either, desaturate the
- * darkest/lightest color to create one.
+ * If missing, add them — derived from the palette's hue but desaturated.
  */
 function ensureAnchors(colors: chroma.Color[]): chroma.Color[] {
   if (colors.length < 2) return colors;
 
   const result = [...colors];
 
-  // Find darkest and lightest
-  let darkIdx = 0, lightIdx = 0;
-  let darkL = Infinity, lightL = -Infinity;
-  for (let i = 0; i < result.length; i++) {
-    const L = result[i].lab()[0];
-    if (L < darkL) { darkL = L; darkIdx = i; }
-    if (L > lightL) { lightL = L; lightIdx = i; }
+  // Find the palette's dominant hue (from the most chromatic color)
+  let maxC = 0, dominantH = 0;
+  for (const c of result) {
+    const [, C, H] = c.lch();
+    if (C > maxC) { maxC = C; dominantH = H || 0; }
   }
 
-  // If darkest color is too chromatic (C > 15), desaturate it
-  const darkC = result[darkIdx].lch()[1];
-  if (darkC > 15) {
-    const [L, , H] = result[darkIdx].lch();
-    result[darkIdx] = chroma.lch(L, Math.min(darkC, 10), H);
+  // Check for neutral dark (L < 30, C < 12)
+  const hasNeutralDark = result.some((c) => c.lab()[0] < 30 && c.lch()[1] < 12);
+  if (!hasNeutralDark) {
+    result.push(chroma.lch(20, 5, dominantH));
   }
 
-  // If lightest color is too chromatic (C > 15), desaturate it
-  const lightC = result[lightIdx].lch()[1];
-  if (lightC > 15) {
-    const [L, , H] = result[lightIdx].lch();
-    result[lightIdx] = chroma.lch(L, Math.min(lightC, 8), H);
+  // Check for neutral light (L > 85, C < 12)
+  const hasNeutralLight = result.some((c) => c.lab()[0] > 85 && c.lch()[1] < 12);
+  if (!hasNeutralLight) {
+    result.push(chroma.lch(92, 3, dominantH));
   }
 
   return result;
